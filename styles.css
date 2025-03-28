@@ -10,8 +10,8 @@ body {
 }
 
 #add-punter {
-    font-size: 16px; /* Reduced from 48px (divided by 3) */
-    padding: 3px 6px; /* Reduced proportionally */
+    font-size: 16px;
+    padding: 3px 6px;
     background-color: #f0f0f0;
     border: 2px solid #333;
     border-radius: 5px;
@@ -42,8 +42,8 @@ body {
 }
 
 .punter-section {
-    flex: 1 1 45%; /* Adjusted to ~45% to fit 2 per row */
-    min-width: 400px; /* Adjusted for better fit */
+    flex: 1 1 45%;
+    min-width: 400px;
 }
 
 .punter-table {
@@ -96,7 +96,6 @@ body {
     margin-top: 5px;
 }
 
-/* Modal styles */
 .modal {
     position: fixed;
     z-index: 1;
