@@ -128,11 +128,13 @@ function addPunter(name, existingBets = []) {
                     <th>Next Stake</th>
                     <th>Loss Streak</th>
                     <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="bets-${name}">
             </tbody>
         </table>
+        <button class="next-bet" data-punter="${name}">Next Bet</button>
     `;
     container.appendChild(punterDiv);
 
@@ -157,6 +159,7 @@ function addPunter(name, existingBets = []) {
                 <td>${bet.nextStake !== '-' ? bet.nextStake.toFixed(2) : '-'}</td>
                 <td>${bet.lossStreak}</td>
                 <td>${bet.status}</td>
+                <td><button class="delete-bet" ${bet.status === 'Stopped' ? 'disabled' : ''}>Delete</button></td>
             `;
             if (bet.outcome === 'W' || bet.outcome === 'w') row.classList.add('win');
             if (bet.outcome === 'L') row.classList.add('loss');
@@ -164,6 +167,7 @@ function addPunter(name, existingBets = []) {
             tbody.appendChild(row);
             if (bet.status !== 'Stopped') {
                 row.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, name));
+                row.querySelector('.delete-bet').addEventListener('click', () => deleteBet(name, index));
             }
         });
     } else {
@@ -185,9 +189,11 @@ function addPunter(name, existingBets = []) {
             <td>-</td>
             <td>0</td>
             <td>Active</td>
+            <td><button class="delete-bet">Delete</button></td>
         `;
         tbody.appendChild(row);
         row.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, name));
+        row.querySelector('.delete-bet').addEventListener('click', () => deleteBet(name, 0));
     }
 
     updateProfitLoss(name);
@@ -201,6 +207,8 @@ function addPunter(name, existingBets = []) {
             updateOverallProfit();
         }
     });
+
+    punterDiv.querySelector('.next-bet').addEventListener('click', () => addNextBet(name));
 }
 
 function updateBet(event, punterName) {
@@ -233,6 +241,11 @@ function updateBet(event, punterName) {
         status = 'Stopped';
         row.classList.add('stopped');
         row.cells[5].textContent = '-';
+        row.querySelector('.stake').disabled = true;
+        row.querySelector('.game').disabled = true;
+        row.querySelector('.odds').disabled = true;
+        row.querySelector('.outcome').disabled = true;
+        row.querySelector('.delete-bet').disabled = true;
     }
     row.cells[7].textContent = status;
 
@@ -262,30 +275,74 @@ function updateBet(event, punterName) {
 
     updateProfitLoss(punterName);
     updateOverallProfit();
+}
 
-    if (status === 'Active') {
-        const newRow = document.createElement('tr');
-        newRow.innerHTML = `
-            <td>${parseInt(row.cells[0].textContent) + 1}</td>
-            <td><input type="number" class="stake" value="${nextStake.toFixed(2)}" min="1"></td>
-            <td><input type="text" class="game" placeholder="Enter game"></td>
-            <td><input type="number" class="odds" placeholder="Enter odds" step="0.01" min="1"></td>
-            <td>
-                <select class="outcome">
-                    <option value="">--</option>
-                    <option value="W">W (Big Win)</option>
-                    <option value="w">w (Small Win)</option>
-                    <option value="D">D (Draw)</option>
-                    <option value="L">L (Loss)</option>
-                </select>
-            </td>
-            <td>-</td>
-            <td>${lossStreak}</td>
-            <td>Active</td>
-        `;
-        tbody.appendChild(newRow);
-        newRow.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, punterName));
+function addNextBet(punterName) {
+    const tbody = document.getElementById(`bets-${punterName}`);
+    const lastRow = tbody.querySelector('tr:last-child');
+    if (!lastRow) return;
+
+    const lastStatus = lastRow.cells[7].textContent;
+    if (lastStatus === 'Stopped') return; // Don't add new row if stopped
+
+    const lastNextStake = parseFloat(lastRow.cells[5].textContent);
+    const lastLossStreak = parseInt(lastRow.cells[6].textContent);
+    const newBetNumber = parseInt(lastRow.cells[0].textContent) + 1;
+
+    const newRow = document.createElement('tr');
+    newRow.innerHTML = `
+        <td>${newBetNumber}</td>
+        <td><input type="number" class="stake" value="${lastNextStake.toFixed(2)}" min="1"></td>
+        <td><input type="text" class="game" placeholder="Enter game"></td>
+        <td><input type="number" class="odds" placeholder="Enter odds" step="0.01" min="1"></td>
+        <td>
+            <select class="outcome">
+                <option value="">--</option>
+                <option value="W">W (Big Win)</option>
+                <option value="w">w (Small Win)</option>
+                <option value="D">D (Draw)</option>
+                <option value="L">L (Loss)</option>
+            </select>
+        </td>
+        <td>-</td>
+        <td>${lastLossStreak}</td>
+        <td>Active</td>
+        <td><button class="delete-bet">Delete</button></td>
+    `;
+    tbody.appendChild(newRow);
+    newRow.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, punterName));
+    newRow.querySelector('.delete-bet').addEventListener('click', () => deleteBet(punterName, newBetNumber - 1));
+}
+
+function deleteBet(punterName, betIndex) {
+    const tbody = document.getElementById(`bets-${punterName}`);
+    const rows = tbody.querySelectorAll('tr');
+    if (rows.length === 1) {
+        alert("Cannot delete the last bet. Use the 'Close' button to remove the punter.");
+        return;
     }
+
+    tbody.deleteRow(betIndex);
+    // Re-number the remaining rows
+    Array.from(tbody.querySelectorAll('tr')).forEach((row, index) => {
+        row.cells[0].textContent = index + 1;
+    });
+
+    const bets = Array.from(tbody.querySelectorAll('tr')).map(row => {
+        return {
+            stake: parseFloat(row.querySelector('.stake').value),
+            game: row.querySelector('.game').value,
+            odds: parseFloat(row.querySelector('.odds').value) || 0,
+            outcome: row.querySelector('.outcome').value,
+            nextStake: row.cells[5].textContent,
+            lossStreak: parseInt(row.cells[6].textContent),
+            status: row.cells[7].textContent
+        };
+    });
+    savePunterData(punterName, bets);
+
+    updateProfitLoss(punterName);
+    updateOverallProfit();
 }
 
 function updateProfitLoss(punterName) {
