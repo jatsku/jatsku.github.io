@@ -3,9 +3,15 @@ body {
     margin: 20px;
 }
 
+.button-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
 #add-punter {
-    font-size: 48px;
-    padding: 10px 20px;
+    font-size: 16px; /* Reduced from 48px (divided by 3) */
+    padding: 3px 6px; /* Reduced proportionally */
     background-color: #f0f0f0;
     border: 2px solid #333;
     border-radius: 5px;
@@ -16,15 +22,28 @@ body {
     background-color: #ddd;
 }
 
+#view-records {
+    padding: 5px 10px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#view-records:hover {
+    background-color: #45a049;
+}
+
 #punters-container {
     display: flex;
-    flex-wrap: wrap; /* Allow wrapping to next row if needed */
-    gap: 20px; /* Space between punter tables */
+    flex-wrap: wrap;
+    gap: 20px;
 }
 
 .punter-section {
-    flex: 1 1 30%; /* Each punter takes up ~30% of the width, allowing 3 per row */
-    min-width: 300px; /* Minimum width to prevent squishing */
+    flex: 1 1 45%; /* Adjusted to ~45% to fit 2 per row */
+    min-width: 400px; /* Adjusted for better fit */
 }
 
 .punter-table {
@@ -44,11 +63,11 @@ body {
     background-color: #f0f0f0;
 }
 
-.punter-table th:nth-child(2), .punter-table td:nth-child(2) { /* Stake column */
+.punter-table th:nth-child(2), .punter-table td:nth-child(2) {
     width: 60px;
 }
 
-.punter-table th:nth-child(5), .punter-table td:nth-child(5) { /* Loss Streak column */
+.punter-table th:nth-child(5), .punter-table td:nth-child(5) {
     width: 50px;
 }
 
@@ -75,6 +94,52 @@ body {
 .profit-loss {
     font-weight: bold;
     margin-top: 5px;
+}
+
+/* Modal styles */
+.modal {
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 600px;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+}
+
+#records-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+#records-content th, #records-content td {
+    border: 1px solid #ccc;
+    padding: 5px;
+    text-align: center;
 }
 
 .win {
