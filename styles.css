@@ -4,7 +4,7 @@ body {
 }
 
 #add-punter {
-    font-size: 48px; /* Big plus sign */
+    font-size: 48px;
     padding: 10px 20px;
     background-color: #f0f0f0;
     border: 2px solid #333;
@@ -16,15 +16,27 @@ body {
     background-color: #ddd;
 }
 
+#punters-container {
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping to next row if needed */
+    gap: 20px; /* Space between punter tables */
+}
+
+.punter-section {
+    flex: 1 1 30%; /* Each punter takes up ~30% of the width, allowing 3 per row */
+    min-width: 300px; /* Minimum width to prevent squishing */
+}
+
 .punter-table {
-    margin: 20px 0;
+    margin: 10px 0;
     border-collapse: collapse;
-    font-size: 14px; /* Smaller font size for the table */
+    font-size: 14px;
+    width: 100%;
 }
 
 .punter-table th, .punter-table td {
     border: 1px solid #ccc;
-    padding: 4px; /* Reduced padding to make cells smaller */
+    padding: 4px;
     text-align: center;
 }
 
@@ -32,29 +44,47 @@ body {
     background-color: #f0f0f0;
 }
 
-/* Adjust column widths */
 .punter-table th:nth-child(2), .punter-table td:nth-child(2) { /* Stake column */
-    width: 60px; /* Smaller width for Stake */
+    width: 60px;
 }
 
-.punter-table th:nth-child(4), .punter-table td:nth-child(4) { /* Loss Streak column */
-    width: 50px; /* Smaller width for Loss Streak */
+.punter-table th:nth-child(5), .punter-table td:nth-child(5) { /* Loss Streak column */
+    width: 50px;
 }
 
 .punter-table input, .punter-table select {
     width: 100%;
     box-sizing: border-box;
-    font-size: 14px; /* Match the smaller font size */
+    font-size: 14px;
+}
+
+.close-punter {
+    background-color: #ff4444;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    margin-left: 10px;
+}
+
+.close-punter:hover {
+    background-color: #cc0000;
+}
+
+.profit-loss {
+    font-weight: bold;
+    margin-top: 5px;
 }
 
 .win {
-    background-color: #d4edda; /* Green for W/w */
+    background-color: #d4edda;
 }
 
 .loss {
-    background-color: #f8d7da; /* Red for L */
+    background-color: #f8d7da;
 }
 
 .stopped {
-    background-color: #ffeeba; /* Yellow for stopped */
+    background-color: #ffeeba;
 }
