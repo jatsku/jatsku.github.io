@@ -1,16 +1,3 @@
-// Initialize Firebase with your configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyB0OMuB6omALc2_Y_AFeBe2DmRpC7qQ6Tw",
-    authDomain: "betassist-1a8a6.firebaseapp.com",
-    projectId: "betassist-1a8a6",
-    storageBucket: "betassist-1a8a6.firebasestorage.app",
-    messagingSenderId: "566402071650",
-    appId: "1:566402071650:web:4f495d182ab94266fe253b"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
 // Load existing data on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadPunterData();
@@ -36,44 +23,77 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.style.display = 'none';
         }
     });
+
+    // Export data
+    const exportButton = document.getElementById('export-data');
+    exportButton.addEventListener('click', () => {
+        const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+        const dataStr = JSON.stringify(punterData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'betting-assistant-data.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+
+    // Import data
+    const importButton = document.getElementById('import-button');
+    const importInput = document.getElementById('import-data');
+    importButton.addEventListener('click', () => {
+        importInput.click();
+    });
+    importInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    localStorage.setItem('punterData', JSON.stringify(importedData));
+                    alert('Data imported successfully! Reloading page...');
+                    location.reload();
+                } catch (err) {
+                    alert('Error importing data: Invalid JSON file.');
+                }
+            };
+            reader.readAsText(file);
+        }
+    });
 });
 
-async function loadPunterData() {
-    const snapshot = await db.collection('punters').get();
-    const punterData = {};
-    snapshot.forEach(doc => {
-        punterData[doc.id] = doc.data();
-    });
+function loadPunterData() {
+    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
     for (const name in punterData) {
         addPunter(name, punterData[name].bets || []);
     }
 }
 
-async function savePunterData(name, bets) {
-    await db.collection('punters').doc(name).set({
-        bets: bets,
-        history: (await db.collection('punters').doc(name).get()).data()?.history || []
-    });
+function savePunterData(name, bets) {
+    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+    punterData[name] = punterData[name] || { bets: [], history: [] };
+    punterData[name].bets = bets;
+    localStorage.setItem('punterData', JSON.stringify(punterData));
 }
 
-async function savePunterHistory(name, profitLoss) {
-    const docRef = db.collection('punters').doc(name);
-    const doc = await docRef.get();
-    const history = doc.exists ? (doc.data().history || []) : [];
-    history.push({
+function savePunterHistory(name, profitLoss) {
+    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+    punterData[name] = punterData[name] || { bets: [], history: [] };
+    punterData[name].history.push({
         timestamp: new Date().toISOString(),
         profitLoss: profitLoss
     });
-    await docRef.set({
-        bets: [],
-        history: history
-    });
+    punterData[name].bets = [];
+    localStorage.setItem('punterData', JSON.stringify(punterData));
 }
 
-async function removePunterData(name) {
-    await db.collection('punters').doc(name).update({
-        bets: []
-    });
+function removePunterData(name) {
+    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+    if (punterData[name]) {
+        punterData[name].bets = [];
+        localStorage.setItem('punterData', JSON.stringify(punterData));
+    }
 }
 
 function addPunter(name, existingBets = []) {
@@ -163,18 +183,18 @@ function addPunter(name, existingBets = []) {
 
     updateProfitLoss(name);
 
-    punterDiv.querySelector('.close-punter').addEventListener('click', async () => {
+    punterDiv.querySelector('.close-punter').addEventListener('click', () => {
         if (confirm(`Are you sure you want to close ${name}'s record?`)) {
             const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
-            await savePunterHistory(name, profitLoss);
+            savePunterHistory(name, profitLoss);
             punterDiv.remove();
-            await removePunterData(name);
+            removePunterData(name);
             updateOverallProfit();
         }
     });
 }
 
-async function updateBet(event, punterName) {
+function updateBet(event, punterName) {
     const row = event.target.closest('tr');
     const outcome = event.target.value;
     const stake = parseFloat(row.querySelector('.stake').value);
@@ -232,7 +252,7 @@ async function updateBet(event, punterName) {
             status: row.cells[7].textContent
         };
     });
-    await savePunterData(punterName, bets);
+    savePunterData(punterName, bets);
 
     updateProfitLoss(punterName);
     updateOverallProfit();
@@ -288,13 +308,12 @@ function updateProfitLoss(punterName) {
     profitLossDiv.style.color = totalProfitLoss >= 0 ? 'green' : 'red';
 }
 
-async function updateOverallProfit() {
-    const snapshot = await db.collection('punters').get();
+function updateOverallProfit() {
+    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
     let overallProfit = 0;
 
-    snapshot.forEach(doc => {
-        const data = doc.data();
-        const bets = data.bets || [];
+    for (const name in punterData) {
+        const bets = punterData[name].bets || [];
         bets.forEach(bet => {
             if (bet.outcome === 'W') {
                 overallProfit += bet.stake * (bet.odds - 1);
@@ -305,25 +324,24 @@ async function updateOverallProfit() {
             }
         });
 
-        const history = data.history || [];
+        const history = punterData[name].history || [];
         history.forEach(record => {
             overallProfit += record.profitLoss;
         });
-    });
+    }
 
     const overallProfitDiv = document.getElementById('overall-profit');
     overallProfitDiv.textContent = `Overall Profit/Loss: $${overallProfit.toFixed(2)}`;
     overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
 }
 
-async function showRecords() {
-    const snapshot = await db.collection('punters').get();
+function showRecords() {
+    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
     const recordsContent = document.getElementById('records-content');
     let html = '<table><thead><tr><th>Punter</th><th>Date</th><th>Profit/Loss</th></tr></thead><tbody>';
 
-    snapshot.forEach(doc => {
-        const name = doc.id;
-        const history = doc.data().history || [];
+    for (const name in punterData) {
+        const history = punterData[name].history || [];
         history.forEach(record => {
             const date = new Date(record.timestamp).toLocaleString();
             html += `
@@ -334,7 +352,7 @@ async function showRecords() {
                 </tr>
             `;
         });
-    });
+    }
 
     html += '</tbody></table>';
     recordsContent.innerHTML = html;
