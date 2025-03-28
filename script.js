@@ -190,9 +190,7 @@ function removePunterData(name) {
 function addPunter(name, existingBets = []) {
     const container = document.getElementById('punters-container');
     const punterDiv = document.createElement('div');
-    punterDiv
-
-.classList.add('punter-section');
+    punterDiv.classList.add('punter-section');
     punterDiv.setAttribute('data-punter', name);
 
     punterDiv.innerHTML = `
@@ -381,7 +379,7 @@ function addNextBet(punterName) {
     const lastRow = tbody.querySelector('tr:last-child');
     if (!lastRow) return;
 
-    const lastStatus = lastRow.cells[7].textContent;
+    const lastStatus | lastRow.cells[7].textContent;
     if (lastStatus === 'Stopped') return;
 
     const lastNextStake = parseFloat(lastRow.cells[5].textContent);
