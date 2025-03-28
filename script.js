@@ -1,7 +1,7 @@
 // Google Sheets API Configuration
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID'; // Replace with your Spreadsheet ID
-const CLIENT_ID = 'YOUR_CLIENT_ID'; // From your Google Cloud Console (in the JSON key file)
-const API_KEY = 'YOUR_API_KEY'; // Create an API key in Google Cloud Console under Credentials
+const SPREADSHEET_ID = '1o8PKRxaSY8zOSIQcVvzyer6SXWFXurV0HXx7VLs8R58'; // Your Spreadsheet ID
+const CLIENT_ID = '110408053185578219774'; // Your Client ID
+const API_KEY = 'AIzaSyBYd-PHgsPxctMpFUqWUh9n25ZGdl644l0'; // Your API Key
 const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
 const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
 
@@ -19,6 +19,7 @@ function initGoogleSheetsAPI() {
             updateOverallProfit();
         }).catch(err => {
             console.error("Error initializing Google Sheets API:", err);
+            alert("Failed to initialize Google Sheets API. Check console for details.");
         });
     });
 }
