@@ -190,7 +190,9 @@ function removePunterData(name) {
 function addPunter(name, existingBets = []) {
     const container = document.getElementById('punters-container');
     const punterDiv = document.createElement('div');
-    punterDiv.classList.add('punter-section');
+    punterDiv
+
+.classList.add('punter-section');
     punterDiv.setAttribute('data-punter', name);
 
     punterDiv.innerHTML = `
