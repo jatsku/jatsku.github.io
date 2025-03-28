@@ -155,13 +155,20 @@ body {
 /* Adjusted column widths */
 .punter-table th:nth-child(1), .punter-table td:nth-child(1) { width: 22.5px; } /* Bet # */
 .punter-table th:nth-child(2), .punter-table td:nth-child(2) { width: 37.5px; } /* Stake */
-.punter-table th:nth-child(3), .punter-table td:nth-child(3) { width: 85px; } /* Game (increased) */
+.punter-table th:nth-child(3), .punter-table td:nth-child(3) { width: 145px; } /* Game (increased) */
 .punter-table th:nth-child(4), .punter-table td:nth-child(4) { width: 37.5px; } /* Odds */
-.punter-table th:nth-child(5), .punter-table td:nth-child(5) { width: 30px; } /* Outcome (reduced) */
-.punter-table th:nth-child(6), .punter-table td:nth-child(6) { width: 25px; } /* Next Stake (reduced) */
-.punter-table th:nth-child(7), .punter-table td:nth-child(7) { width: 25px; } /* Loss Streak (reduced) */
+.punter-table th:nth-child(5), .punter-table td:nth-child(5) { width: 7.5px; } /* Outcome (reduced 4x) */
+.punter-table th:nth-child(6), .punter-table td:nth-child(6) { width: 6px; } /* Next Stake (reduced 4x) */
+.punter-table th:nth-child(7), .punter-table td:nth-child(7) { width: 6px; } /* Loss Streak (reduced 4x) */
 .punter-table th:nth-child(8), .punter-table td:nth-child(8) { width: 37.5px; } /* Status */
 .punter-table th:nth-child(9), .punter-table td:nth-child(9) { width: 45px; } /* Actions */
+
+/* Adjust font size for smaller columns to improve readability */
+.punter-table th:nth-child(5), .punter-table td:nth-child(5),
+.punter-table th:nth-child(6), .punter-table td:nth-child(6),
+.punter-table th:nth-child(7), .punter-table td:nth-child(7) {
+    font-size: 0.7em; /* Reduced font size for these columns */
+}
 
 .punter-table th {
     background-color: #f2f2f2;
@@ -173,6 +180,11 @@ body {
     padding: 0;
     box-sizing: border-box;
     font-size: 0.9em;
+}
+
+/* Adjust font size for inputs/selects in smaller columns */
+.punter-table select.outcome {
+    font-size: 0.7em; /* Match the column font size */
 }
 
 .punter-table select {
