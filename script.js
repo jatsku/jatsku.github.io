@@ -277,7 +277,10 @@ function addPunter(name, existingBets = []) {
 
     updateProfitLoss(name);
 
-    punterDiv.querySelector('.close-punter').addEventListener('click', () => {
+    const closeButton = punterDiv.querySelector('.close-punter');
+    console.log(`Close button for ${name}:`, closeButton);
+    closeButton.addEventListener('click', () => {
+        console.log(`Close button clicked for ${name}`);
         if (confirm(`Are you sure you want to close ${name}'s record?`)) {
             const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
             savePunterHistory(name, profitLoss);
@@ -287,7 +290,12 @@ function addPunter(name, existingBets = []) {
         }
     });
 
-    punterDiv.querySelector('.next-bet').addEventListener('click', () => addNextBet(name));
+    const nextBetButton = punterDiv.querySelector('.next-bet');
+    console.log(`Next Bet button for ${name}:`, nextBetButton);
+    nextBetButton.addEventListener('click', () => {
+        console.log(`Next Bet button clicked for ${name}`);
+        addNextBet(name);
+    });
 }
 
 function updateBet(event, punterName) {
