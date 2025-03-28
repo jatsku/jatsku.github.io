@@ -1,137 +1,198 @@
 body {
     font-family: Arial, sans-serif;
     margin: 20px;
+    background-color: #f4f4f4;
 }
 
 .button-container {
-    display: flex;
-    gap: 10px;
     margin-bottom: 20px;
 }
 
-#add-punter {
-    font-size: 16px;
-    padding: 3px 6px;
-    background-color: #f0f0f0;
-    border: 2px solid #333;
-    border-radius: 5px;
-    cursor: pointer;
-}
-
-#add-punter:hover {
-    background-color: #ddd;
-}
-
-#view-records, #export-data, #import-button {
+#add-punter, #view-records, #export-data, #import-button, #clear-data {
     padding: 5px 10px;
+    margin: 5px;
     border: none;
-    border-radius: 5px;
+    border-radius: 3px;
     cursor: pointer;
+}
+
+#add-punter {
+    background-color: #4CAF50;
     color: white;
 }
 
-#view-records {
-    background-color: #4CAF50;
-}
-
-#view-records:hover {
+#add-punter:hover {
     background-color: #45a049;
 }
 
+#view-records {
+    background-color: #008CBA;
+    color: white;
+}
+
+#view-records:hover {
+    background-color: #007bb5;
+}
+
 #export-data {
-    background-color: #2196F3;
+    background-color: #555555;
+    color: white;
 }
 
 #export-data:hover {
-    background-color: #1e88e5;
+    background-color: #444444;
 }
 
 #import-button {
-    background-color: #FF9800;
+    background-color: #ff9800;
+    color: white;
 }
 
 #import-button:hover {
-    background-color: #fb8c00;
+    background-color: #e68a00;
 }
 
-#punters-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
+#clear-data {
+    padding: 5px 10px;
+    margin: 5px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#clear-data:hover {
+    background-color: #da190b;
 }
 
 .punter-section {
-    flex: 1 1 45%;
-    min-width: 400px;
+    background-color: white;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.punter-section h2 {
+    display: inline;
+    margin-right: 10px;
+}
+
+.close-punter {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.close-punter:hover {
+    background-color: #da190b;
 }
 
 .punter-table {
-    margin: 10px 0;
-    border-collapse: collapse;
-    font-size: 14px;
     width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
 }
 
 .punter-table th, .punter-table td {
-    border: 1px solid #ccc;
-    padding: 4px;
-    text-align: center;
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
 }
 
 .punter-table th {
-    background-color: #f0f0f0;
-}
-
-.punter-table th:nth-child(2), .punter-table td:nth-child(2) {
-    width: 60px;
-}
-
-.punter-table th:nth-child(5), .punter-table td:nth-child(5) {
-    width: 50px;
+    background-color: #f2f2f2;
 }
 
 .punter-table input, .punter-table select {
     width: 100%;
+    padding: 5px;
     box-sizing: border-box;
-    font-size: 14px;
 }
 
-.close-punter {
-    background-color: #ff4444;
+.punter-table tr.win {
+    background-color: #e0ffe0;
+}
+
+.punter-table tr.loss {
+    background-color: #ffe0e0;
+}
+
+.punter-table tr.stopped {
+    background-color: #ffcccc;
+}
+
+.next-bet {
+    margin-top: 10px;
+    background-color: #4CAF50;
     color: white;
     border: none;
     padding: 5px 10px;
-    cursor: pointer;
     border-radius: 3px;
-    margin-left: 10px;
+    cursor: pointer;
 }
 
-.close-punter:hover {
-    background-color: #cc0000;
+.next-bet:hover {
+    background-color: #45a049;
+}
+
+.next-bet:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.delete-bet {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.delete-bet:hover {
+    background-color: #da190b;
+}
+
+.delete-bet:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
 }
 
 .profit-loss {
+    margin-top: 10px;
     font-weight: bold;
-    margin-top: 5px;
+}
+
+#overall-profit {
+    font-size: 1.2em;
+    margin-top: 20px;
 }
 
 .modal {
+    display: none;
     position: fixed;
     z-index: 1;
     left: 0;
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
 }
 
 .modal-content {
-    background-color: #fefefe;
+    background-color: white;
     margin: 15% auto;
     padding: 20px;
     border: 1px solid #888;
     width: 80%;
     max-width: 600px;
+    border-radius: 5px;
 }
 
 .close {
@@ -151,23 +212,14 @@ body {
 #records-content table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
 }
 
 #records-content th, #records-content td {
-    border: 1px solid #ccc;
-    padding: 5px;
-    text-align: center;
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
 }
 
-.win {
-    background-color: #d4edda;
-}
-
-.loss {
-    background-color: #f8d7da;
-}
-
-.stopped {
-    background-color: #ffeeba;
+#records-content th {
+    background-color: #f2f2f2;
 }
