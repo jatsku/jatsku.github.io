@@ -2,13 +2,30 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOMContentLoaded event fired');
 
+    // Verify all elements exist
+    const addPunterButton = document.getElementById('add-punter');
+    const viewRecordsButton = document.getElementById('view-records');
+    const exportButton = document.getElementById('export-data');
+    const importButton = document.getElementById('import-button');
+    const importInput = document.getElementById('import-data');
+    const clearDataButton = document.getElementById('clear-data');
+    const closeModal = document.getElementById('close-modal');
+    const recordsModal = document.getElementById('records-modal');
+
+    console.log('Add Punter Button:', addPunterButton);
+    console.log('View Records Button:', viewRecordsButton);
+    console.log('Export Data Button:', exportButton);
+    console.log('Import Button:', importButton);
+    console.log('Import Input:', importInput);
+    console.log('Clear Data Button:', clearDataButton);
+    console.log('Close Modal Button:', closeModal);
+    console.log('Records Modal:', recordsModal);
+
     // Load existing data
     loadPunterData();
     updateOverallProfit();
 
     // Add Punter button
-    const addPunterButton = document.getElementById('add-punter');
-    console.log('Add Punter Button:', addPunterButton);
     if (addPunterButton) {
         addPunterButton.addEventListener('click', () => {
             console.log('Add Punter button clicked');
@@ -20,8 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // View Records button
-    const viewRecordsButton = document.getElementById('view-records');
-    console.log('View Records Button:', viewRecordsButton);
     if (viewRecordsButton) {
         viewRecordsButton.addEventListener('click', () => {
             console.log('View Records button clicked');
@@ -32,8 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Close Modal button
-    const closeModal = document.getElementById('close-modal');
-    console.log('Close Modal Button:', closeModal);
     if (closeModal) {
         closeModal.addEventListener('click', () => {
             console.log('Close Modal button clicked');
@@ -44,17 +57,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Modal click outside to close
-    window.addEventListener('click', (event) => {
-        const modal = document.getElementById('records-modal');
-        if (event.target === modal) {
-            console.log('Clicked outside modal to close');
-            modal.style.display = 'none';
-        }
-    });
+    if (recordsModal) {
+        window.addEventListener('click', (event) => {
+            if (event.target === recordsModal) {
+                console.log('Clicked outside modal to close');
+                recordsModal.style.display = 'none';
+            }
+        });
+    } else {
+        console.error('Records Modal not found');
+    }
 
     // Export Data button
-    const exportButton = document.getElementById('export-data');
-    console.log('Export Data Button:', exportButton);
     if (exportButton) {
         exportButton.addEventListener('click', () => {
             console.log('Export Data button clicked');
@@ -73,10 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Import Data button
-    const importButton = document.getElementById('import-button');
-    const importInput = document.getElementById('import-data');
-    console.log('Import Button:', importButton);
-    console.log('Import Input:', importInput);
     if (importButton && importInput) {
         importButton.addEventListener('click', () => {
             console.log('Import Data button clicked');
@@ -105,8 +115,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Clear Data button
-    const clearDataButton = document.getElementById('clear-data');
-    console.log('Clear Data Button:', clearDataButton);
     if (clearDataButton) {
         clearDataButton.addEventListener('click', () => {
             console.log('Clear Data button clicked');
