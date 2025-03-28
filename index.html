@@ -6,8 +6,19 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <button id="add-punter">+</button>
+    <div class="button-container">
+        <button id="add-punter">+</button>
+        <button id="view-records">View Records</button>
+    </div>
     <div id="punters-container"></div>
+    <div id="overall-profit" class="profit-loss">Overall Profit/Loss: $0.00</div>
+    <div id="records-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span id="close-modal" class="close">&times;</span>
+            <h2>Betting Records</h2>
+            <div id="records-content"></div>
+        </div>
+    </div>
     <script src="script.js"></script>
 </body>
 </html>
