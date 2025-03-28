@@ -65,15 +65,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function loadPunterDataFromStorage() {
     const data = localStorage.getItem('punterData');
-    return data ? JSON.parse(data) : {};
+    try {
+        return data ? JSON.parse(data) : {};
+    } catch (err) {
+        console.error('Error parsing punterData from localStorage:', err);
+        // If parsing fails, reset to an empty object to avoid further issues
+        localStorage.setItem('punterData', JSON.stringify({}));
+        return {};
+    }
 }
 
 function savePunterDataToStorage(punterData) {
-    localStorage.setItem('punterData', JSON.stringify(punterData));
+    try {
+        localStorage.setItem('punterData', JSON.stringify(punterData));
+    } catch (err) {
+        console.error('Error saving punterData to localStorage:', err);
+    }
 }
 
 function loadPunterData() {
     const punterData = loadPunterDataFromStorage();
+    console.log('Loaded punterData:', punterData);
     for (const name in punterData) {
         addPunter(name, punterData[name].bets || []);
     }
@@ -88,6 +100,7 @@ function savePunterData(name, bets) {
 
 function savePunterHistory(name, profitLoss) {
     const punterData = loadPunterDataFromStorage();
+    console.log(`Saving history for ${name}:`, { profitLoss });
     punterData[name] = punterData[name] || { bets: [], history: [] };
     if (!punterData[name].history) punterData[name].history = []; // Ensure history array exists
     punterData[name].history.push({
@@ -95,6 +108,7 @@ function savePunterHistory(name, profitLoss) {
         profitLoss: profitLoss
     });
     punterData[name].bets = []; // Clear bets after saving to history
+    console.log(`Updated punterData for ${name}:`, punterData[name]);
     savePunterDataToStorage(punterData);
 }
 
@@ -410,6 +424,7 @@ function updateOverallProfit() {
 
 function showRecords() {
     const punterData = loadPunterDataFromStorage();
+    console.log('Showing records, punterData:', punterData);
     const recordsContent = document.getElementById('records-content');
     let html = '<table><thead><tr><th>Punter</th><th>Most Recent Date</th><th>Total Profit/Loss</th></tr></thead><tbody>';
 
@@ -417,7 +432,10 @@ function showRecords() {
     const groupedRecords = {};
     for (const name in punterData) {
         const history = punterData[name].history || [];
-        if (history.length === 0) continue; // Skip punters with no history
+        if (history.length === 0) {
+            console.log(`No history for ${name}`);
+            continue; // Skip punters with no history
+        }
 
         let totalProfitLoss = 0;
         let mostRecentDate = null;
