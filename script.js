@@ -1,7 +1,31 @@
+// Google Sheets API Configuration
+const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID'; // Replace with your Spreadsheet ID
+const CLIENT_ID = 'YOUR_CLIENT_ID'; // From your Google Cloud Console (in the JSON key file)
+const API_KEY = 'YOUR_API_KEY'; // Create an API key in Google Cloud Console under Credentials
+const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
+const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
+
+// Load Google API Client and Auth2 libraries
+function initGoogleSheetsAPI() {
+    gapi.load('client:auth2', () => {
+        gapi.client.init({
+            apiKey: API_KEY,
+            clientId: CLIENT_ID,
+            discoveryDocs: DISCOVERY_DOCS,
+            scope: SCOPES
+        }).then(() => {
+            // API is ready, load punter data
+            loadPunterData();
+            updateOverallProfit();
+        }).catch(err => {
+            console.error("Error initializing Google Sheets API:", err);
+        });
+    });
+}
+
 // Load existing data on page load
 document.addEventListener('DOMContentLoaded', () => {
-    loadPunterData();
-    updateOverallProfit();
+    initGoogleSheetsAPI();
 
     const addPunterButton = document.getElementById('add-punter');
     addPunterButton.addEventListener('click', () => {
@@ -26,8 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Export data
     const exportButton = document.getElementById('export-data');
-    exportButton.addEventListener('click', () => {
-        const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+    exportButton.addEventListener('click', async () => {
+        const punterData = await loadPunterDataFromSheets();
         const dataStr = JSON.stringify(punterData, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -48,10 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 try {
                     const importedData = JSON.parse(e.target.result);
-                    localStorage.setItem('punterData', JSON.stringify(importedData));
+                    await savePunterDataToSheets(importedData);
                     alert('Data imported successfully! Reloading page...');
                     location.reload();
                 } catch (err) {
@@ -63,36 +87,91 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function loadPunterData() {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+async function loadPunterDataFromSheets() {
+    try {
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Sheet1!A2:C'
+        });
+        const rows = response.result.values || [];
+        const punterData = {};
+        rows.forEach(row => {
+            const [name, bets, history] = row;
+            punterData[name] = {
+                bets: bets ? JSON.parse(bets) : [],
+                history: history ? JSON.parse(history) : []
+            };
+        });
+        return punterData;
+    } catch (err) {
+        console.error("Error loading data from Google Sheets:", err);
+        return {};
+    }
+}
+
+async function savePunterDataToSheets(punterData) {
+    try {
+        // First, load existing data to preserve other punters
+        const existingData = await loadPunterDataFromSheets();
+        Object.assign(existingData, punterData);
+
+        // Prepare data for writing
+        const rows = Object.entries(existingData).map(([name, data]) => [
+            name,
+            JSON.stringify(data.bets || []),
+            JSON.stringify(data.history || [])
+        ]);
+
+        // Clear existing data
+        await gapi.client.sheets.spreadsheets.values.clear({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Sheet1!A2:C'
+        });
+
+        // Write new data
+        await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: 'Sheet1!A2:C',
+            valueInputOption: 'RAW',
+            resource: {
+                values: rows
+            }
+        });
+    } catch (err) {
+        console.error("Error saving data to Google Sheets:", err);
+    }
+}
+
+async function loadPunterData() {
+    const punterData = await loadPunterDataFromSheets();
     for (const name in punterData) {
         addPunter(name, punterData[name].bets || []);
     }
 }
 
-function savePunterData(name, bets) {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+async function savePunterData(name, bets) {
+    const punterData = await loadPunterDataFromSheets();
     punterData[name] = punterData[name] || { bets: [], history: [] };
     punterData[name].bets = bets;
-    localStorage.setItem('punterData', JSON.stringify(punterData));
+    await savePunterDataToSheets(punterData);
 }
 
-function savePunterHistory(name, profitLoss) {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+async function savePunterHistory(name, profitLoss) {
+    const punterData = await loadPunterDataFromSheets();
     punterData[name] = punterData[name] || { bets: [], history: [] };
     punterData[name].history.push({
         timestamp: new Date().toISOString(),
         profitLoss: profitLoss
     });
     punterData[name].bets = [];
-    localStorage.setItem('punterData', JSON.stringify(punterData));
+    await savePunterDataToSheets(punterData);
 }
 
-function removePunterData(name) {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+async function removePunterData(name) {
+    const punterData = await loadPunterDataFromSheets();
     if (punterData[name]) {
         punterData[name].bets = [];
-        localStorage.setItem('punterData', JSON.stringify(punterData));
+        await savePunterDataToSheets(punterData);
     }
 }
 
@@ -183,18 +262,18 @@ function addPunter(name, existingBets = []) {
 
     updateProfitLoss(name);
 
-    punterDiv.querySelector('.close-punter').addEventListener('click', () => {
+    punterDiv.querySelector('.close-punter').addEventListener('click', async () => {
         if (confirm(`Are you sure you want to close ${name}'s record?`)) {
             const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
-            savePunterHistory(name, profitLoss);
+            await savePunterHistory(name, profitLoss);
             punterDiv.remove();
-            removePunterData(name);
+            await removePunterData(name);
             updateOverallProfit();
         }
     });
 }
 
-function updateBet(event, punterName) {
+async function updateBet(event, punterName) {
     const row = event.target.closest('tr');
     const outcome = event.target.value;
     const stake = parseFloat(row.querySelector('.stake').value);
@@ -252,7 +331,7 @@ function updateBet(event, punterName) {
             status: row.cells[7].textContent
         };
     });
-    savePunterData(punterName, bets);
+    await savePunterData(punterName, bets);
 
     updateProfitLoss(punterName);
     updateOverallProfit();
@@ -308,8 +387,8 @@ function updateProfitLoss(punterName) {
     profitLossDiv.style.color = totalProfitLoss >= 0 ? 'green' : 'red';
 }
 
-function updateOverallProfit() {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+async function updateOverallProfit() {
+    const punterData = await loadPunterDataFromSheets();
     let overallProfit = 0;
 
     for (const name in punterData) {
@@ -335,8 +414,8 @@ function updateOverallProfit() {
     overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
 }
 
-function showRecords() {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+async function showRecords() {
+    const punterData = await loadPunterDataFromSheets();
     const recordsContent = document.getElementById('records-content');
     let html = '<table><thead><tr><th>Punter</th><th>Date</th><th>Profit/Loss</th></tr></thead><tbody>';
 
