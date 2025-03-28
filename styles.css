@@ -4,12 +4,12 @@ body {
     background-color: #f4f4f4;
     display: flex;
     flex-direction: column;
-    align-items: center; /* Center the entire content on the page */
+    align-items: center;
 }
 
 .button-container {
     margin-bottom: 20px;
-    text-align: center; /* Center the buttons */
+    text-align: center;
 }
 
 #add-punter, #view-records, #export-data, #import-button, #clear-data {
@@ -73,10 +73,10 @@ body {
 #punters-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 15px; /* Reduced gap for better spacing */
-    justify-content: center; /* Center the punter sections within the container */
+    gap: 20px;
+    justify-content: center;
     width: 100%;
-    max-width: 1200px; /* Limit the container width for better balance on large screens */
+    max-width: 1200px;
 }
 
 .punter-section {
@@ -84,9 +84,11 @@ body {
     padding: 15px;
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    flex: 1 1 350px; /* Adjusted flex-basis for a slightly wider section */
-    max-width: 450px; /* Reduced max-width for better balance */
+    flex: 0 1 300px; /* Reduced flex-basis to 300px */
+    min-width: 300px; /* Reduced min-width to 300px */
+    max-width: 400px;
     box-sizing: border-box;
+    overflow-x: auto; /* Allow horizontal scrolling if table overflows */
 }
 
 .punter-section h2 {
@@ -111,12 +113,14 @@ body {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
+    min-width: 600px; /* Ensure table has a minimum width to fit all columns */
 }
 
 .punter-table th, .punter-table td {
     border: 1px solid #ddd;
-    padding: 8px;
+    padding: 4px; /* Reduced padding to make columns narrower */
     text-align: left;
+    white-space: nowrap; /* Prevent text wrapping to save space */
 }
 
 .punter-table th {
@@ -125,8 +129,9 @@ body {
 
 .punter-table input, .punter-table select {
     width: 100%;
-    padding: 5px;
+    padding: 3px; /* Reduced padding for inputs */
     box-sizing: border-box;
+    font-size: 0.9em; /* Slightly smaller font size */
 }
 
 .punter-table tr.win {
@@ -186,7 +191,7 @@ body {
 #overall-profit {
     font-size: 1.2em;
     margin-top: 20px;
-    text-align: center; /* Center the overall profit/loss */
+    text-align: center;
 }
 
 .modal {
