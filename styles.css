@@ -22,17 +22,36 @@ body {
     background-color: #ddd;
 }
 
-#view-records {
+#view-records, #export-data, #import-button {
     padding: 5px 10px;
-    background-color: #4CAF50;
-    color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
+    color: white;
+}
+
+#view-records {
+    background-color: #4CAF50;
 }
 
 #view-records:hover {
     background-color: #45a049;
+}
+
+#export-data {
+    background-color: #2196F3;
+}
+
+#export-data:hover {
+    background-color: #1e88e5;
+}
+
+#import-button {
+    background-color: #FF9800;
+}
+
+#import-button:hover {
+    background-color: #fb8c00;
 }
 
 #punters-container {
