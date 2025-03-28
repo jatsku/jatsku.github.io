@@ -344,21 +344,46 @@ function updateOverallProfit() {
 function showRecords() {
     const punterData = loadPunterDataFromStorage();
     const recordsContent = document.getElementById('records-content');
-    let html = '<table><thead><tr><th>Punter</th><th>Date</th><th>Profit/Loss</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Punter</th><th>Most Recent Date</th><th>Total Profit/Loss</th></tr></thead><tbody>';
 
+    // Group records by punter
+    const groupedRecords = {};
     for (const name in punterData) {
         const history = punterData[name].history || [];
+        if (history.length === 0) continue; // Skip punters with no history
+
+        let totalProfitLoss = 0;
+        let mostRecentDate = null;
+
         history.forEach(record => {
-            const date = new Date(record.timestamp).toLocaleString();
-            html += `
-                <tr>
-                    <td>${name}</td>
-                    <td>${date}</td>
-                    <td style="color: ${record.profitLoss >= 0 ? 'green' : 'red'}">$${record.profitLoss.toFixed(2)}</td>
-                </tr>
-            `;
+            totalProfitLoss += record.profitLoss;
+            const recordDate = new Date(record.timestamp);
+            if (!mostRecentDate || recordDate > mostRecentDate) {
+                mostRecentDate = recordDate;
+            }
         });
+
+        groupedRecords[name] = {
+            totalProfitLoss: totalProfitLoss,
+            mostRecentDate: mostRecentDate
+        };
     }
+
+    // Sort punters alphabetically
+    const sortedPunterNames = Object.keys(groupedRecords).sort();
+
+    // Generate table rows
+    sortedPunterNames.forEach(name => {
+        const { totalProfitLoss, mostRecentDate } = groupedRecords[name];
+        const formattedDate = mostRecentDate.toLocaleString();
+        html += `
+            <tr>
+                <td>${name}</td>
+                <td>${formattedDate}</td>
+                <td style="color: ${totalProfitLoss >= 0 ? 'green' : 'red'}">$${totalProfitLoss.toFixed(2)}</td>
+            </tr>
+        `;
+    });
 
     html += '</tbody></table>';
     recordsContent.innerHTML = html;
