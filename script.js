@@ -208,24 +208,21 @@ function updateBet(event, punterName) {
     const outcome = event.target.value;
     const stake = parseFloat(row.querySelector('.stake').value);
     const odds = parseFloat(row.querySelector('.odds').value) || 0;
-    let nextStake = 0;
+    let nextStake = stake; // Default: next stake remains the same
     let lossStreak = parseInt(row.cells[6].textContent);
     let status = 'Active';
 
     if (outcome === 'W') {
-        nextStake = stake * 1.5;
-        lossStreak = 0;
+        lossStreak = 0; // Reset loss streak on big win
         row.classList.add('win');
     } else if (outcome === 'w') {
-        nextStake = stake * 1.25;
-        lossStreak = 0;
+        lossStreak = 0; // Reset loss streak on small win
         row.classList.add('win');
     } else if (outcome === 'D') {
-        nextStake = stake;
-        lossStreak = 0;
+        lossStreak = 0; // Reset loss streak on draw
     } else if (outcome === 'L') {
-        nextStake = stake * 2;
-        lossStreak += 1;
+        nextStake = stake * 2; // Double the stake on loss
+        lossStreak += 1; // Increment loss streak on loss
         row.classList.add('loss');
     }
 
