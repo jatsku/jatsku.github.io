@@ -2,14 +2,38 @@ body {
     font-family: Arial, sans-serif;
     margin: 20px;
 }
+
+#add-punter {
+    font-size: 48px; /* Big plus sign */
+    padding: 10px 20px;
+    background-color: #f0f0f0;
+    border: 2px solid #333;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#add-punter:hover {
+    background-color: #ddd;
+}
+
 .punter-table {
     margin: 20px 0;
     border-collapse: collapse;
 }
+
 .punter-table th, .punter-table td {
     border: 1px solid #ccc;
     padding: 8px;
 }
-.win { background-color: #d4edda; } /* Green for W/w */
-.loss { background-color: #f8d7da; } /* Red for L */
-.stopped { background-color: #ffeeba; } /* Yellow for stopped */
+
+.win {
+    background-color: #d4edda; /* Green for W/w */
+}
+
+.loss {
+    background-color: #f8d7da; /* Red for L */
+}
+
+.stopped {
+    background-color: #ffeeba; /* Yellow for stopped */
+}
