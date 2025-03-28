@@ -73,7 +73,7 @@ body {
 #punters-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 10px;
     justify-content: center;
     width: 100%;
     max-width: 1200px;
@@ -84,11 +84,17 @@ body {
     padding: 15px;
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    flex: 0 1 300px;
-    min-width: 300px;
-    max-width: 400px;
+    flex: 0 1 280px;
+    min-width: 280px;
+    max-width: 380px;
     box-sizing: border-box;
-    /* Removed overflow-x: auto to remove scrollbar */
+}
+
+@media (max-width: 620px) {
+    .punter-section {
+        flex: 0 1 100%;
+        max-width: 100%;
+    }
 }
 
 .punter-section h2 {
@@ -113,51 +119,41 @@ body {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
-    /* Removed min-width: 600px to allow table to shrink */
-    font-size: 0.8em; /* Reduced font size for the entire table */
+    font-size: 0.8em;
 }
 
 .punter-table th, .punter-table td {
     border: 1px solid #ddd;
-    padding: 2px; /* Further reduced padding */
-    text-align: left;
+    padding: 2px;
+    text-align: center;
     white-space: nowrap;
+    box-sizing: border-box;
 }
 
-/* Set specific widths for each column to fit within 300px */
-.punter-table th:nth-child(1), .punter-table td:nth-child(1) { /* Bet # */
-    width: 30px;
-}
-.punter-table th:nth-child(2), .punter-table td:nth-child(2) { /* Stake */
-    width: 40px;
-}
-.punter-table th:nth-child(3), .punter-table td:nth-child(3) { /* Game */
-    width: 50px;
-}
-.punter-table th:nth-child(4), .punter-table td:nth-child(4) { /* Odds */
-    width: 40px;
-}
-.punter-table th:nth-child(5), .punter-table td:nth-child(5) { /* Outcome */
-    width: 50px;
-}
-.punter-table th:nth-child(6), .punter-table td:nth-child(6) { /* Next Stake */
-    width: 40px;
-}
-.punter-table th:nth-child(7), .punter-table td:nth-child(7) { /* Loss Streak */
-    width: 40px;
-}
-.punter-table th:nth-child(8), .punter-table td:nth-child(8) { /* Status */
-    width: 40px;
-}
-.punter-table th:nth-child(9), .punter-table td:nth-child(9) { /* Actions */
-    width: 50px;
+.punter-table th:nth-child(1), .punter-table td:nth-child(1) { width: 25px; }
+.punter-table th:nth-child(2), .punter-table td:nth-child(2) { width: 35px; }
+.punter-table th:nth-child(3), .punter-table td:nth-child(3) { width: 40px; }
+.punter-table th:nth-child(4), .punter-table td:nth-child(4) { width: 35px; }
+.punter-table th:nth-child(5), .punter-table td:nth-child(5) { width: 40px; }
+.punter-table th:nth-child(6), .punter-table td:nth-child(6) { width: 35px; }
+.punter-table th:nth-child(7), .punter-table td:nth-child(7) { width: 35px; }
+.punter-table th:nth-child(8), .punter-table td:nth-child(8) { width: 35px; }
+.punter-table th:nth-child(9), .punter-table td:nth-child(9) { width: 40px; }
+
+.punter-table th {
+    background-color: #f2f2f2;
+    font-size: 0.75em;
 }
 
 .punter-table input, .punter-table select {
     width: 100%;
-    padding: 2px; /* Further reduced padding */
+    padding: 1px;
     box-sizing: border-box;
-    font-size: 0.8em; /* Further reduced font size */
+    font-size: 0.75em;
+}
+
+.punter-table select {
+    padding: 0;
 }
 
 .punter-table tr.win {
@@ -195,9 +191,10 @@ body {
     background-color: #f44336;
     color: white;
     border: none;
-    padding: 5px 10px;
+    padding: 2px 5px;
     border-radius: 3px;
     cursor: pointer;
+    font-size: 0.75em;
 }
 
 .delete-bet:hover {
