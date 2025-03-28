@@ -1,3 +1,16 @@
+// Initialize Firebase with your configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyB0OMuB6omALc2_Y_AFeBe2DmRpC7qQ6Tw",
+    authDomain: "betassist-1a8a6.firebaseapp.com",
+    projectId: "betassist-1a8a6",
+    storageBucket: "betassist-1a8a6.firebasestorage.app",
+    messagingSenderId: "566402071650",
+    appId: "1:566402071650:web:4f495d182ab94266fe253b"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 // Load existing data on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadPunterData();
@@ -9,17 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (name) addPunter(name);
     });
 
-    // View Records button
     const viewRecordsButton = document.getElementById('view-records');
     viewRecordsButton.addEventListener('click', showRecords);
 
-    // Close modal
     const closeModal = document.getElementById('close-modal');
     closeModal.addEventListener('click', () => {
         document.getElementById('records-modal').style.display = 'none';
     });
 
-    // Close modal when clicking outside
     window.addEventListener('click', (event) => {
         const modal = document.getElementById('records-modal');
         if (event.target === modal) {
@@ -28,41 +38,42 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Load punter data from localStorage
-function loadPunterData() {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+async function loadPunterData() {
+    const snapshot = await db.collection('punters').get();
+    const punterData = {};
+    snapshot.forEach(doc => {
+        punterData[doc.id] = doc.data();
+    });
     for (const name in punterData) {
-        addPunter(name, punterData[name].bets);
+        addPunter(name, punterData[name].bets || []);
     }
 }
 
-// Save punter data to localStorage
-function savePunterData(name, bets) {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
-    punterData[name] = punterData[name] || { bets: [], history: [] };
-    punterData[name].bets = bets;
-    localStorage.setItem('punterData', JSON.stringify(punterData));
+async function savePunterData(name, bets) {
+    await db.collection('punters').doc(name).set({
+        bets: bets,
+        history: (await db.collection('punters').doc(name).get()).data()?.history || []
+    });
 }
 
-// Save historical data when a punter is closed
-function savePunterHistory(name, profitLoss) {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
-    punterData[name] = punterData[name] || { bets: [], history: [] };
-    punterData[name].history.push({
+async function savePunterHistory(name, profitLoss) {
+    const docRef = db.collection('punters').doc(name);
+    const doc = await docRef.get();
+    const history = doc.exists ? (doc.data().history || []) : [];
+    history.push({
         timestamp: new Date().toISOString(),
         profitLoss: profitLoss
     });
-    punterData[name].bets = []; // Clear current bets
-    localStorage.setItem('punterData', JSON.stringify(punterData));
+    await docRef.set({
+        bets: [],
+        history: history
+    });
 }
 
-// Remove punter from localStorage (current bets only)
-function removePunterData(name) {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
-    if (punterData[name]) {
-        punterData[name].bets = [];
-        localStorage.setItem('punterData', JSON.stringify(punterData));
-    }
+async function removePunterData(name) {
+    await db.collection('punters').doc(name).update({
+        bets: []
+    });
 }
 
 function addPunter(name, existingBets = []) {
@@ -152,18 +163,18 @@ function addPunter(name, existingBets = []) {
 
     updateProfitLoss(name);
 
-    punterDiv.querySelector('.close-punter').addEventListener('click', () => {
+    punterDiv.querySelector('.close-punter').addEventListener('click', async () => {
         if (confirm(`Are you sure you want to close ${name}'s record?`)) {
             const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
-            savePunterHistory(name, profitLoss);
+            await savePunterHistory(name, profitLoss);
             punterDiv.remove();
-            removePunterData(name);
+            await removePunterData(name);
             updateOverallProfit();
         }
     });
 }
 
-function updateBet(event, punterName) {
+async function updateBet(event, punterName) {
     const row = event.target.closest('tr');
     const outcome = event.target.value;
     const stake = parseFloat(row.querySelector('.stake').value);
@@ -221,7 +232,7 @@ function updateBet(event, punterName) {
             status: row.cells[7].textContent
         };
     });
-    savePunterData(punterName, bets);
+    await savePunterData(punterName, bets);
 
     updateProfitLoss(punterName);
     updateOverallProfit();
@@ -262,8 +273,10 @@ function updateProfitLoss(punterName) {
         const odds = parseFloat(row.querySelector('.odds').value) || 0;
         const outcome = row.querySelector('.outcome').value;
 
-        if (outcome === 'W' || outcome === 'w') {
-            totalProfitLoss += stake * (odds - 1);
+        if (outcome === 'W') {
+            totalProfitLoss += stake * (odds - 1); // Full profit for big win
+        } else if (outcome === 'w') {
+            totalProfitLoss += (stake * (odds - 1)) / 2; // Half profit for small win
         } else if (outcome === 'L') {
             totalProfitLoss -= stake;
         }
@@ -275,40 +288,42 @@ function updateProfitLoss(punterName) {
     profitLossDiv.style.color = totalProfitLoss >= 0 ? 'green' : 'red';
 }
 
-function updateOverallProfit() {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+async function updateOverallProfit() {
+    const snapshot = await db.collection('punters').get();
     let overallProfit = 0;
 
-    for (const name in punterData) {
-        // Add profit/loss from current bets
-        const bets = punterData[name].bets || [];
+    snapshot.forEach(doc => {
+        const data = doc.data();
+        const bets = data.bets || [];
         bets.forEach(bet => {
-            if (bet.outcome === 'W' || bet.outcome === 'w') {
+            if (bet.outcome === 'W') {
                 overallProfit += bet.stake * (bet.odds - 1);
+            } else if (bet.outcome === 'w') {
+                overallProfit += (bet.stake * (bet.odds - 1)) / 2;
             } else if (bet.outcome === 'L') {
                 overallProfit -= bet.stake;
             }
         });
 
-        // Add profit/loss from historical records
-        const history = punterData[name].history || [];
+        const history = data.history || [];
         history.forEach(record => {
             overallProfit += record.profitLoss;
         });
-    }
+    });
 
     const overallProfitDiv = document.getElementById('overall-profit');
     overallProfitDiv.textContent = `Overall Profit/Loss: $${overallProfit.toFixed(2)}`;
     overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
 }
 
-function showRecords() {
-    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+async function showRecords() {
+    const snapshot = await db.collection('punters').get();
     const recordsContent = document.getElementById('records-content');
     let html = '<table><thead><tr><th>Punter</th><th>Date</th><th>Profit/Loss</th></tr></thead><tbody>';
 
-    for (const name in punterData) {
-        const history = punterData[name].history || [];
+    snapshot.forEach(doc => {
+        const name = doc.id;
+        const history = doc.data().history || [];
         history.forEach(record => {
             const date = new Date(record.timestamp).toLocaleString();
             html += `
@@ -319,7 +334,7 @@ function showRecords() {
                 </tr>
             `;
         });
-    }
+    });
 
     html += '</tbody></table>';
     recordsContent.innerHTML = html;
