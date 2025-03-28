@@ -1,9 +1,26 @@
-document.getElementById('add-punter').addEventListener('click', () => {
+// Check if the button is being found
+console.log("Script loaded, looking for button...");
+const addPunterButton = document.getElementById('add-punter');
+if (addPunterButton) {
+    console.log("Button found!");
+} else {
+    console.error("Button with ID 'add-punter' not found!");
+}
+
+// Add event listener
+addPunterButton.addEventListener('click', () => {
+    console.log("Add Punter button clicked!");
     const name = prompt('Enter punter name:');
-    if (name) addPunter(name);
+    if (name) {
+        console.log("Punter name entered:", name);
+        addPunter(name);
+    } else {
+        console.log("No name entered, cancelling...");
+    }
 });
 
 function addPunter(name) {
+    console.log("Adding punter:", name);
     const container = document.getElementById('punters-container');
     const punterDiv = document.createElement('div');
     punterDiv.innerHTML = `
@@ -62,7 +79,7 @@ function updateBet(event, punterName) {
         nextStake = stake * 1.25;
         lossStreak = 0;
         row.classList.add('win');
-    } else if (outcome === 'D')10 {
+    } else if (outcome === 'D') {
         nextStake = stake;
         lossStreak = 0;
     } else if (outcome === 'L') {
