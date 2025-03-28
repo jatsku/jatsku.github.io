@@ -84,11 +84,11 @@ body {
     padding: 15px;
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    flex: 0 1 300px; /* Reduced flex-basis to 300px */
-    min-width: 300px; /* Reduced min-width to 300px */
+    flex: 0 1 300px;
+    min-width: 300px;
     max-width: 400px;
     box-sizing: border-box;
-    overflow-x: auto; /* Allow horizontal scrolling if table overflows */
+    /* Removed overflow-x: auto to remove scrollbar */
 }
 
 .punter-section h2 {
@@ -113,25 +113,51 @@ body {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
-    min-width: 600px; /* Ensure table has a minimum width to fit all columns */
+    /* Removed min-width: 600px to allow table to shrink */
+    font-size: 0.8em; /* Reduced font size for the entire table */
 }
 
 .punter-table th, .punter-table td {
     border: 1px solid #ddd;
-    padding: 4px; /* Reduced padding to make columns narrower */
+    padding: 2px; /* Further reduced padding */
     text-align: left;
-    white-space: nowrap; /* Prevent text wrapping to save space */
+    white-space: nowrap;
 }
 
-.punter-table th {
-    background-color: #f2f2f2;
+/* Set specific widths for each column to fit within 300px */
+.punter-table th:nth-child(1), .punter-table td:nth-child(1) { /* Bet # */
+    width: 30px;
+}
+.punter-table th:nth-child(2), .punter-table td:nth-child(2) { /* Stake */
+    width: 40px;
+}
+.punter-table th:nth-child(3), .punter-table td:nth-child(3) { /* Game */
+    width: 50px;
+}
+.punter-table th:nth-child(4), .punter-table td:nth-child(4) { /* Odds */
+    width: 40px;
+}
+.punter-table th:nth-child(5), .punter-table td:nth-child(5) { /* Outcome */
+    width: 50px;
+}
+.punter-table th:nth-child(6), .punter-table td:nth-child(6) { /* Next Stake */
+    width: 40px;
+}
+.punter-table th:nth-child(7), .punter-table td:nth-child(7) { /* Loss Streak */
+    width: 40px;
+}
+.punter-table th:nth-child(8), .punter-table td:nth-child(8) { /* Status */
+    width: 40px;
+}
+.punter-table th:nth-child(9), .punter-table td:nth-child(9) { /* Actions */
+    width: 50px;
 }
 
 .punter-table input, .punter-table select {
     width: 100%;
-    padding: 3px; /* Reduced padding for inputs */
+    padding: 2px; /* Further reduced padding */
     box-sizing: border-box;
-    font-size: 0.9em; /* Slightly smaller font size */
+    font-size: 0.8em; /* Further reduced font size */
 }
 
 .punter-table tr.win {
