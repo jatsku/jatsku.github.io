@@ -13,11 +13,12 @@ body {
 }
 
 #add-punter, #view-records, #export-data, #import-button, #clear-data {
-    padding: 5px 10px;
+    padding: 7.5px 15px; /* Increased by 1.5x (was 5px 10px) */
     margin: 5px;
     border: none;
     border-radius: 3px;
     cursor: pointer;
+    font-size: 1.2em; /* Increased for better readability */
 }
 
 #add-punter {
@@ -57,13 +58,14 @@ body {
 }
 
 #clear-data {
-    padding: 5px 10px;
+    padding: 7.5px 15px; /* Increased by 1.5x (was 5px 10px) */
     margin: 5px;
     background-color: #f44336;
     color: white;
     border: none;
     border-radius: 3px;
     cursor: pointer;
+    font-size: 1.2em; /* Increased for better readability */
 }
 
 #clear-data:hover {
@@ -81,21 +83,33 @@ body {
 
 .punter-section {
     background-color: white;
-    padding: 10px;
+    padding: 15px; /* Increased by 1.5x (was 10px) */
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     flex: 0 0 auto;
-    width: 220px;
-    min-width: 200px;
-    height: 250px;
-    min-height: 200px;
+    width: 330px; /* Increased by 1.5x (was 220px) */
+    min-width: 300px; /* Increased by 1.5x (was 200px) */
+    height: 375px; /* Increased by 1.5x (was 250px) */
+    min-height: 300px; /* Increased by 1.5x (was 200px) */
     box-sizing: border-box;
     resize: both;
     overflow: auto;
     position: relative;
 }
 
-@media (max-width: 470px) {
+/* Visual resize handle */
+.punter-section::after {
+    content: '';
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    width: 10px;
+    height: 10px;
+    background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><polygon points="0,10 10,0 10,10" fill="gray"/></svg>') no-repeat;
+    cursor: se-resize;
+}
+
+@media (max-width: 730px) { /* Adjusted for larger sections (was 470px) */
     .punter-section {
         flex: 0 1 100%;
         width: 100%;
@@ -106,17 +120,17 @@ body {
 .punter-section h2 {
     display: inline;
     margin-right: 10px;
-    font-size: 1em;
+    font-size: 1.5em; /* Increased by 1.5x (was 1em) */
 }
 
 .close-punter {
     background-color: #f44336;
     color: white;
     border: none;
-    padding: 3px 6px;
+    padding: 4.5px 9px; /* Increased by 1.5x (was 3px 6px) */
     border-radius: 3px;
     cursor: pointer;
-    font-size: 0.8em;
+    font-size: 1.2em; /* Increased by 1.5x (was 0.8em) */
 }
 
 .close-punter:hover {
@@ -127,37 +141,38 @@ body {
     width: 100%;
     border-collapse: collapse;
     margin-top: 5px;
-    font-size: 0.65em;
+    font-size: 1em; /* Increased by 1.5x (was 0.65em) */
 }
 
 .punter-table th, .punter-table td {
     border: 1px solid #ddd;
-    padding: 1px;
+    padding: 1.5px; /* Increased by 1.5x (was 1px) */
     text-align: center;
     white-space: nowrap;
     box-sizing: border-box;
 }
 
-.punter-table th:nth-child(1), .punter-table td:nth-child(1) { width: 15px; }
-.punter-table th:nth-child(2), .punter-table td:nth-child(2) { width: 25px; }
-.punter-table th:nth-child(3), .punter-table td:nth-child(3) { width: 30px; }
-.punter-table th:nth-child(4), .punter-table td:nth-child(4) { width: 25px; }
-.punter-table th:nth-child(5), .punter-table td:nth-child(5) { width: 30px; }
-.punter-table th:nth-child(6), .punter-table td:nth-child(6) { width: 25px; }
-.punter-table th:nth-child(7), .punter-table td:nth-child(7) { width: 25px; }
-.punter-table th:nth-child(8), .punter-table td:nth-child(8) { width: 25px; }
-.punter-table th:nth-child(9), .punter-table td:nth-child(9) { width: 30px; }
+/* Adjusted column widths for larger text */
+.punter-table th:nth-child(1), .punter-table td:nth-child(1) { width: 22.5px; } /* Increased by 1.5x (was 15px) */
+.punter-table th:nth-child(2), .punter-table td:nth-child(2) { width: 37.5px; } /* Increased by 1.5x (was 25px) */
+.punter-table th:nth-child(3), .punter-table td:nth-child(3) { width: 45px; } /* Increased by 1.5x (was 30px) */
+.punter-table th:nth-child(4), .punter-table td:nth-child(4) { width: 37.5px; } /* Increased by 1.5x (was 25px) */
+.punter-table th:nth-child(5), .punter-table td:nth-child(5) { width: 45px; } /* Increased by 1.5x (was 30px) */
+.punter-table th:nth-child(6), .punter-table td:nth-child(6) { width: 37.5px; } /* Increased by 1.5x (was 25px) */
+.punter-table th:nth-child(7), .punter-table td:nth-child(7) { width: 37.5px; } /* Increased by 1.5x (was 25px) */
+.punter-table th:nth-child(8), .punter-table td:nth-child(8) { width: 37.5px; } /* Increased by 1.5x (was 25px) */
+.punter-table th:nth-child(9), .punter-table td:nth-child(9) { width: 45px; } /* Increased by 1.5x (was 30px) */
 
 .punter-table th {
     background-color: #f2f2f2;
-    font-size: 0.6em;
+    font-size: 0.9em; /* Increased by 1.5x (was 0.6em) */
 }
 
 .punter-table input, .punter-table select {
     width: 100%;
     padding: 0;
     box-sizing: border-box;
-    font-size: 0.6em;
+    font-size: 0.9em; /* Increased by 1.5x (was 0.6em) */
 }
 
 .punter-table select {
@@ -181,10 +196,10 @@ body {
     background-color: #4CAF50;
     color: white;
     border: none;
-    padding: 3px 6px;
+    padding: 4.5px 9px; /* Increased by 1.5x (was 3px 6px) */
     border-radius: 3px;
     cursor: pointer;
-    font-size: 0.8em;
+    font-size: 1.2em; /* Increased by 1.5x (was 0.8em) */
 }
 
 .next-bet:hover {
@@ -200,10 +215,10 @@ body {
     background-color: #f44336;
     color: white;
     border: none;
-    padding: 1px 3px;
+    padding: 1.5px 4.5px; /* Increased by 1.5x (was 1px 3px) */
     border-radius: 3px;
     cursor: pointer;
-    font-size: 0.6em;
+    font-size: 0.9em; /* Increased by 1.5x (was 0.6em) */
 }
 
 .delete-bet:hover {
@@ -218,11 +233,11 @@ body {
 .profit-loss {
     margin-top: 5px;
     font-weight: bold;
-    font-size: 0.8em;
+    font-size: 1.2em; /* Increased by 1.5x (was 0.8em) */
 }
 
 #overall-profit {
-    font-size: 1.2em;
+    font-size: 1.8em; /* Increased by 1.5x (was 1.2em) */
     margin-top: 20px;
     text-align: center;
 }
