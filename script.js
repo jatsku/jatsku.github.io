@@ -1,6 +1,3 @@
-// Google Apps Script API URL
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyD2CtNFaNCwzE3EUyU3jkWKhwHKAHjF868Z649AkxCO53m8EAjCLdeUEnbv-WLSyk/exec';
-
 // Load existing data on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadPunterData();
@@ -29,8 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Export data
     const exportButton = document.getElementById('export-data');
-    exportButton.addEventListener('click', async () => {
-        const punterData = await loadPunterDataFromSheets();
+    exportButton.addEventListener('click', () => {
+        const punterData = loadPunterDataFromStorage();
         const dataStr = JSON.stringify(punterData, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -51,10 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = async (e) => {
+            reader.onload = (e) => {
                 try {
                     const importedData = JSON.parse(e.target.result);
-                    await savePunterDataToSheets(importedData);
+                    savePunterDataToStorage(importedData);
                     alert('Data imported successfully! Reloading page...');
                     location.reload();
                 } catch (err) {
@@ -66,63 +63,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-async function loadPunterDataFromSheets() {
-    try {
-        const response = await fetch(`${APPS_SCRIPT_URL}?method=get`);
-        if (!response.ok) throw new Error('Failed to fetch data from Apps Script');
-        const punterData = await response.json();
-        return punterData;
-    } catch (err) {
-        console.error("Error loading data from Google Sheets:", err);
-        return {};
-    }
+function loadPunterDataFromStorage() {
+    const data = localStorage.getItem('punterData');
+    return data ? JSON.parse(data) : {};
 }
 
-async function savePunterDataToSheets(punterData) {
-    try {
-        const response = await fetch(`${APPS_SCRIPT_URL}?method=set`, {
-            method: 'POST',
-            body: JSON.stringify(punterData),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        if (!response.ok) throw new Error('Failed to save data to Apps Script');
-    } catch (err) {
-        console.error("Error saving data to Google Sheets:", err);
-    }
+function savePunterDataToStorage(punterData) {
+    localStorage.setItem('punterData', JSON.stringify(punterData));
 }
 
-async function loadPunterData() {
-    const punterData = await loadPunterDataFromSheets();
+function loadPunterData() {
+    const punterData = loadPunterDataFromStorage();
     for (const name in punterData) {
         addPunter(name, punterData[name].bets || []);
     }
 }
 
-async function savePunterData(name, bets) {
-    const punterData = await loadPunterDataFromSheets();
+function savePunterData(name, bets) {
+    const punterData = loadPunterDataFromStorage();
     punterData[name] = punterData[name] || { bets: [], history: [] };
     punterData[name].bets = bets;
-    await savePunterDataToSheets(punterData);
+    savePunterDataToStorage(punterData);
 }
 
-async function savePunterHistory(name, profitLoss) {
-    const punterData = await loadPunterDataFromSheets();
+function savePunterHistory(name, profitLoss) {
+    const punterData = loadPunterDataFromStorage();
     punterData[name] = punterData[name] || { bets: [], history: [] };
     punterData[name].history.push({
         timestamp: new Date().toISOString(),
         profitLoss: profitLoss
     });
     punterData[name].bets = [];
-    await savePunterDataToSheets(punterData);
+    savePunterDataToStorage(punterData);
 }
 
-async function removePunterData(name) {
-    const punterData = await loadPunterDataFromSheets();
+function removePunterData(name) {
+    const punterData = loadPunterDataFromStorage();
     if (punterData[name]) {
         punterData[name].bets = [];
-        await savePunterDataToSheets(punterData);
+        savePunterDataToStorage(punterData);
     }
 }
 
@@ -213,18 +192,18 @@ function addPunter(name, existingBets = []) {
 
     updateProfitLoss(name);
 
-    punterDiv.querySelector('.close-punter').addEventListener('click', async () => {
+    punterDiv.querySelector('.close-punter').addEventListener('click', () => {
         if (confirm(`Are you sure you want to close ${name}'s record?`)) {
             const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
-            await savePunterHistory(name, profitLoss);
+            savePunterHistory(name, profitLoss);
             punterDiv.remove();
-            await removePunterData(name);
+            removePunterData(name);
             updateOverallProfit();
         }
     });
 }
 
-async function updateBet(event, punterName) {
+function updateBet(event, punterName) {
     const row = event.target.closest('tr');
     const outcome = event.target.value;
     const stake = parseFloat(row.querySelector('.stake').value);
@@ -282,7 +261,7 @@ async function updateBet(event, punterName) {
             status: row.cells[7].textContent
         };
     });
-    await savePunterData(punterName, bets);
+    savePunterData(punterName, bets);
 
     updateProfitLoss(punterName);
     updateOverallProfit();
@@ -338,8 +317,8 @@ function updateProfitLoss(punterName) {
     profitLossDiv.style.color = totalProfitLoss >= 0 ? 'green' : 'red';
 }
 
-async function updateOverallProfit() {
-    const punterData = await loadPunterDataFromSheets();
+function updateOverallProfit() {
+    const punterData = loadPunterDataFromStorage();
     let overallProfit = 0;
 
     for (const name in punterData) {
@@ -348,7 +327,7 @@ async function updateOverallProfit() {
             if (bet.outcome === 'W') {
                 overallProfit += bet.stake * (bet.odds - 1);
             } else if (bet.outcome === 'w') {
-                overallProfit += (bet.stake * (odds - 1)) / 2;
+                overallProfit += (bet.stake * (bet.odds - 1)) / 2;
             } else if (bet.outcome === 'L') {
                 overallProfit -= bet.stake;
             }
@@ -365,8 +344,8 @@ async function updateOverallProfit() {
     overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
 }
 
-async function showRecords() {
-    const punterData = await loadPunterDataFromSheets();
+function showRecords() {
+    const punterData = loadPunterDataFromStorage();
     const recordsContent = document.getElementById('records-content');
     let html = '<table><thead><tr><th>Punter</th><th>Date</th><th>Profit/Loss</th></tr></thead><tbody>';
 
