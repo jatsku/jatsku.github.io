@@ -1,10 +1,30 @@
-// Load existing punters from localStorage on page load
+// Load existing data on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadPunterData();
+    updateOverallProfit();
+
     const addPunterButton = document.getElementById('add-punter');
     addPunterButton.addEventListener('click', () => {
         const name = prompt('Enter punter name:');
         if (name) addPunter(name);
+    });
+
+    // View Records button
+    const viewRecordsButton = document.getElementById('view-records');
+    viewRecordsButton.addEventListener('click', showRecords);
+
+    // Close modal
+    const closeModal = document.getElementById('close-modal');
+    closeModal.addEventListener('click', () => {
+        document.getElementById('records-modal').style.display = 'none';
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (event) => {
+        const modal = document.getElementById('records-modal');
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
     });
 });
 
@@ -12,22 +32,37 @@ document.addEventListener('DOMContentLoaded', () => {
 function loadPunterData() {
     const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
     for (const name in punterData) {
-        addPunter(name, punterData[name]);
+        addPunter(name, punterData[name].bets);
     }
 }
 
 // Save punter data to localStorage
 function savePunterData(name, bets) {
     const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
-    punterData[name] = bets;
+    punterData[name] = punterData[name] || { bets: [], history: [] };
+    punterData[name].bets = bets;
     localStorage.setItem('punterData', JSON.stringify(punterData));
 }
 
-// Remove punter from localStorage
+// Save historical data when a punter is closed
+function savePunterHistory(name, profitLoss) {
+    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+    punterData[name] = punterData[name] || { bets: [], history: [] };
+    punterData[name].history.push({
+        timestamp: new Date().toISOString(),
+        profitLoss: profitLoss
+    });
+    punterData[name].bets = []; // Clear current bets
+    localStorage.setItem('punterData', JSON.stringify(punterData));
+}
+
+// Remove punter from localStorage (current bets only)
 function removePunterData(name) {
     const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
-    delete punterData[name];
-    localStorage.setItem('punterData', JSON.stringify(punterData));
+    if (punterData[name]) {
+        punterData[name].bets = [];
+        localStorage.setItem('punterData', JSON.stringify(punterData));
+    }
 }
 
 function addPunter(name, existingBets = []) {
@@ -36,7 +71,6 @@ function addPunter(name, existingBets = []) {
     punterDiv.classList.add('punter-section');
     punterDiv.setAttribute('data-punter', name);
 
-    // Add punter header with close button
     punterDiv.innerHTML = `
         <div style="display: flex; align-items: center;">
             <h2 style="margin: 0;">${name}</h2>
@@ -49,7 +83,7 @@ function addPunter(name, existingBets = []) {
                     <th>Bet #</th>
                     <th>Stake</th>
                     <th>Game</th>
-                    <th>Odds</th> <!-- New Odds column -->
+                    <th>Odds</th>
                     <th>Outcome</th>
                     <th>Next Stake</th>
                     <th>Loss Streak</th>
@@ -62,7 +96,6 @@ function addPunter(name, existingBets = []) {
     `;
     container.appendChild(punterDiv);
 
-    // Add existing bets if any
     const tbody = punterDiv.querySelector(`#bets-${name}`);
     if (existingBets.length > 0) {
         existingBets.forEach((bet, index) => {
@@ -94,7 +127,6 @@ function addPunter(name, existingBets = []) {
             }
         });
     } else {
-        // Add initial row for new punter
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>1</td>
@@ -118,14 +150,15 @@ function addPunter(name, existingBets = []) {
         row.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, name));
     }
 
-    // Update profit/loss
     updateProfitLoss(name);
 
-    // Add close button functionality
     punterDiv.querySelector('.close-punter').addEventListener('click', () => {
         if (confirm(`Are you sure you want to close ${name}'s record?`)) {
+            const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
+            savePunterHistory(name, profitLoss);
             punterDiv.remove();
             removePunterData(name);
+            updateOverallProfit();
         }
     });
 }
@@ -134,12 +167,11 @@ function updateBet(event, punterName) {
     const row = event.target.closest('tr');
     const outcome = event.target.value;
     const stake = parseFloat(row.querySelector('.stake').value);
-    const odds = parseFloat(row.querySelector('.odds').value) || 0; // Get odds
+    const odds = parseFloat(row.querySelector('.odds').value) || 0;
     let nextStake = 0;
-    let lossStreak = parseInt(row.cells[6].textContent); // Adjusted for new columns
+    let lossStreak = parseInt(row.cells[6].textContent);
     let status = 'Active';
 
-    // Calculate next stake and loss streak
     if (outcome === 'W') {
         nextStake = stake * 1.5;
         lossStreak = 0;
@@ -157,10 +189,9 @@ function updateBet(event, punterName) {
         row.classList.add('loss');
     }
 
-    row.cells[5].textContent = nextStake.toFixed(2); // Adjusted for new columns
+    row.cells[5].textContent = nextStake.toFixed(2);
     row.cells[6].textContent = lossStreak;
 
-    // Check stop loss (3 losses in a row)
     if (lossStreak >= 3) {
         status = 'Stopped';
         row.classList.add('stopped');
@@ -168,7 +199,6 @@ function updateBet(event, punterName) {
     }
     row.cells[7].textContent = status;
 
-    // Save the bet to localStorage
     const game = row.querySelector('.game').value;
     const betData = {
         stake: stake,
@@ -193,10 +223,9 @@ function updateBet(event, punterName) {
     });
     savePunterData(punterName, bets);
 
-    // Update profit/loss
     updateProfitLoss(punterName);
+    updateOverallProfit();
 
-    // If not stopped, add new row
     if (status === 'Active') {
         const newRow = document.createElement('tr');
         newRow.innerHTML = `
@@ -234,11 +263,9 @@ function updateProfitLoss(punterName) {
         const outcome = row.querySelector('.outcome').value;
 
         if (outcome === 'W' || outcome === 'w') {
-            totalProfitLoss += stake * (odds - 1); // Profit = stake * (odds - 1)
+            totalProfitLoss += stake * (odds - 1);
         } else if (outcome === 'L') {
-            totalProfitLoss -= stake; // Loss = stake
-        } else if (outcome === 'D') {
-            // Draw: no profit or loss
+            totalProfitLoss -= stake;
         }
     });
 
@@ -246,4 +273,55 @@ function updateProfitLoss(punterName) {
     const profitLossDiv = punterDiv.querySelector('.profit-loss');
     profitLossDiv.textContent = `Profit/Loss: $${totalProfitLoss.toFixed(2)}`;
     profitLossDiv.style.color = totalProfitLoss >= 0 ? 'green' : 'red';
+}
+
+function updateOverallProfit() {
+    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+    let overallProfit = 0;
+
+    for (const name in punterData) {
+        // Add profit/loss from current bets
+        const bets = punterData[name].bets || [];
+        bets.forEach(bet => {
+            if (bet.outcome === 'W' || bet.outcome === 'w') {
+                overallProfit += bet.stake * (bet.odds - 1);
+            } else if (bet.outcome === 'L') {
+                overallProfit -= bet.stake;
+            }
+        });
+
+        // Add profit/loss from historical records
+        const history = punterData[name].history || [];
+        history.forEach(record => {
+            overallProfit += record.profitLoss;
+        });
+    }
+
+    const overallProfitDiv = document.getElementById('overall-profit');
+    overallProfitDiv.textContent = `Overall Profit/Loss: $${overallProfit.toFixed(2)}`;
+    overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
+}
+
+function showRecords() {
+    const punterData = JSON.parse(localStorage.getItem('punterData')) || {};
+    const recordsContent = document.getElementById('records-content');
+    let html = '<table><thead><tr><th>Punter</th><th>Date</th><th>Profit/Loss</th></tr></thead><tbody>';
+
+    for (const name in punterData) {
+        const history = punterData[name].history || [];
+        history.forEach(record => {
+            const date = new Date(record.timestamp).toLocaleString();
+            html += `
+                <tr>
+                    <td>${name}</td>
+                    <td>${date}</td>
+                    <td style="color: ${record.profitLoss >= 0 ? 'green' : 'red'}">$${record.profitLoss.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+    }
+
+    html += '</tbody></table>';
+    recordsContent.innerHTML = html;
+    document.getElementById('records-modal').style.display = 'block';
 }
