@@ -379,7 +379,7 @@ function addNextBet(punterName) {
     const lastRow = tbody.querySelector('tr:last-child');
     if (!lastRow) return;
 
-    const lastStatus | lastRow.cells[7].textContent;
+    const lastStatus = lastRow.cells[7].textContent; // Fixed syntax error
     if (lastStatus === 'Stopped') return;
 
     const lastNextStake = parseFloat(lastRow.cells[5].textContent);
