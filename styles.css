@@ -81,34 +81,42 @@ body {
 
 .punter-section {
     background-color: white;
-    padding: 15px;
+    padding: 10px; /* Reduced padding */
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    flex: 0 1 250px;
-    min-width: 250px;
-    max-width: 300px;
+    flex: 0 0 auto; /* Allow size to be determined by content or resizing */
+    width: 220px; /* Default width for 2x2 grid on 600px screen */
+    min-width: 200px; /* Minimum width to ensure usability */
+    height: 250px; /* Default height */
+    min-height: 200px; /* Minimum height to ensure usability */
     box-sizing: border-box;
+    resize: both; /* Allow resizing in both directions */
+    overflow: auto; /* Add scrollbars if content overflows */
+    position: relative; /* Ensure proper positioning for resizing */
 }
 
-@media (max-width: 570px) {
+@media (max-width: 470px) { /* Adjusted for smaller sections */
     .punter-section {
         flex: 0 1 100%;
-        max-width: 100%;
+        width: 100%;
+        height: auto; /* Allow height to adjust on small screens */
     }
 }
 
 .punter-section h2 {
     display: inline;
     margin-right: 10px;
+    font-size: 1em; /* Reduced font size */
 }
 
 .close-punter {
     background-color: #f44336;
     color: white;
     border: none;
-    padding: 5px 10px;
+    padding: 3px 6px; /* Reduced padding */
     border-radius: 3px;
     cursor: pointer;
+    font-size: 0.8em; /* Reduced font size */
 }
 
 .close-punter:hover {
@@ -118,8 +126,8 @@ body {
 .punter-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 0.7em;
+    margin-top: 5px; /* Reduced margin */
+    font-size: 0.65em; /* Further reduced font size */
 }
 
 .punter-table th, .punter-table td {
@@ -130,26 +138,26 @@ body {
     box-sizing: border-box;
 }
 
-.punter-table th:nth-child(1), .punter-table td:nth-child(1) { width: 20px; }
-.punter-table th:nth-child(2), .punter-table td:nth-child(2) { width: 30px; }
-.punter-table th:nth-child(3), .punter-table td:nth-child(3) { width: 35px; }
-.punter-table th:nth-child(4), .punter-table td:nth-child(4) { width: 30px; }
-.punter-table th:nth-child(5), .punter-table td:nth-child(5) { width: 35px; }
-.punter-table th:nth-child(6), .punter-table td:nth-child(6) { width: 30px; }
-.punter-table th:nth-child(7), .punter-table td:nth-child(7) { width: 30px; }
-.punter-table th:nth-child(8), .punter-table td:nth-child(8) { width: 30px; }
-.punter-table th:nth-child(9), .punter-table td:nth-child(9) { width: 35px; }
+.punter-table th:nth-child(1), .punter-table td:nth-child(1) { width: 15px; } /* Bet # */
+.punter-table th:nth-child(2), .punter-table td:nth-child(2) { width: 25px; } /* Stake */
+.punter-table th:nth-child(3), .punter-table td:nth-child(3) { width: 30px; } /* Game */
+.punter-table th:nth-child(4), .punter-table td:nth-child(4) { width: 25px; } /* Odds */
+.punter-table th:nth-child(5), .punter-table td:nth-child(5) { width: 30px; } /* Outcome */
+.punter-table th:nth-child(6), .punter-table td:nth-child(6) { width: 25px; } /* Next Stake */
+.punter-table th:nth-child(7), .punter-table td:nth-child(7) { width: 25px; } /* Loss Streak */
+.punter-table th:nth-child(8), .punter-table td:nth-child(8) { width: 25px; } /* Status */
+.punter-table th:nth-child(9), .punter-table td:nth-child(9) { width: 30px; } /* Actions */
 
 .punter-table th {
     background-color: #f2f2f2;
-    font-size: 0.65em;
+    font-size: 0.6em; /* Further reduced font size for headers */
 }
 
 .punter-table input, .punter-table select {
     width: 100%;
     padding: 0;
     box-sizing: border-box;
-    font-size: 0.65em;
+    font-size: 0.6em; /* Further reduced font size */
 }
 
 .punter-table select {
@@ -169,13 +177,14 @@ body {
 }
 
 .next-bet {
-    margin-top: 10px;
+    margin-top: 5px; /* Reduced margin */
     background-color: #4CAF50;
     color: white;
     border: none;
-    padding: 5px 10px;
+    padding: 3px 6px; /* Reduced padding */
     border-radius: 3px;
     cursor: pointer;
+    font-size: 0.8em; /* Reduced font size */
 }
 
 .next-bet:hover {
@@ -194,7 +203,7 @@ body {
     padding: 1px 3px;
     border-radius: 3px;
     cursor: pointer;
-    font-size: 0.65em;
+    font-size: 0.6em;
 }
 
 .delete-bet:hover {
@@ -207,8 +216,9 @@ body {
 }
 
 .profit-loss {
-    margin-top: 10px;
+    margin-top: 5px; /* Reduced margin */
     font-weight: bold;
+    font-size: 0.8em; /* Reduced font size */
 }
 
 #overall-profit {
