@@ -30,6 +30,7 @@ function addPunter(name) {
                 <tr>
                     <th>Bet #</th>
                     <th>Stake</th>
+                    <th>Game</th> <!-- New Game column -->
                     <th>Outcome</th>
                     <th>Next Stake</th>
                     <th>Loss Streak</th>
@@ -40,6 +41,7 @@ function addPunter(name) {
                 <tr>
                     <td>1</td>
                     <td><input type="number" class="stake" value="10" min="1"></td>
+                    <td><input type="text" class="game" placeholder="Enter game"></td> <!-- Input for game name -->
                     <td>
                         <select class="outcome">
                             <option value="">--</option>
@@ -67,7 +69,7 @@ function updateBet(event, punterName) {
     const outcome = event.target.value;
     const stake = parseFloat(row.querySelector('.stake').value);
     let nextStake = 0;
-    let lossStreak = parseInt(row.cells[4].textContent);
+    let lossStreak = parseInt(row.cells[5].textContent); // Adjusted index due to new Game column
     let status = 'Active';
 
     // Calculate next stake and loss streak
@@ -88,16 +90,16 @@ function updateBet(event, punterName) {
         row.classList.add('loss');
     }
 
-    row.cells[3].textContent = nextStake.toFixed(2);
-    row.cells[4].textContent = lossStreak;
+    row.cells[4].textContent = nextStake.toFixed(2); // Adjusted index for Next Stake
+    row.cells[5].textContent = lossStreak; // Adjusted index for Loss Streak
 
     // Check stop loss (3 losses in a row)
     if (lossStreak >= 3) {
         status = 'Stopped';
         row.classList.add('stopped');
-        row.cells[3].textContent = '-';
+        row.cells[4].textContent = '-'; // Adjusted index
     }
-    row.cells[5].textContent = status;
+    row.cells[6].textContent = status; // Adjusted index for Status
 
     // If not stopped, add new row
     if (status === 'Active') {
@@ -106,6 +108,7 @@ function updateBet(event, punterName) {
         newRow.innerHTML = `
             <td>${parseInt(row.cells[0].textContent) + 1}</td>
             <td><input type="number" class="stake" value="${nextStake.toFixed(2)}" min="1"></td>
+            <td><input type="text" class="game" placeholder="Enter game"></td> <!-- New row also has Game input -->
             <td>
                 <select class="outcome">
                     <option value="">--</option>
