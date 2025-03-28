@@ -89,18 +89,19 @@ function savePunterData(name, bets) {
 function savePunterHistory(name, profitLoss) {
     const punterData = loadPunterDataFromStorage();
     punterData[name] = punterData[name] || { bets: [], history: [] };
+    if (!punterData[name].history) punterData[name].history = []; // Ensure history array exists
     punterData[name].history.push({
         timestamp: new Date().toISOString(),
         profitLoss: profitLoss
     });
-    punterData[name].bets = [];
+    punterData[name].bets = []; // Clear bets after saving to history
     savePunterDataToStorage(punterData);
 }
 
 function removePunterData(name) {
     const punterData = loadPunterDataFromStorage();
     if (punterData[name]) {
-        punterData[name].bets = [];
+        punterData[name].bets = []; // Clear bets
         savePunterDataToStorage(punterData);
     }
 }
@@ -196,6 +197,12 @@ function addPunter(name, existingBets = []) {
         row.querySelector('.delete-bet').addEventListener('click', () => deleteBet(name, 0));
     }
 
+    // Check if the last bet is stopped and disable the "Next Bet" button if so
+    const lastRow = tbody.querySelector('tr:last-child');
+    if (lastRow && lastRow.cells[7].textContent === 'Stopped') {
+        punterDiv.querySelector('.next-bet').disabled = true;
+    }
+
     updateProfitLoss(name);
 
     punterDiv.querySelector('.close-punter').addEventListener('click', () => {
@@ -246,6 +253,9 @@ function updateBet(event, punterName) {
         row.querySelector('.odds').disabled = true;
         row.querySelector('.outcome').disabled = true;
         row.querySelector('.delete-bet').disabled = true;
+        // Disable the "Next Bet" button
+        const punterDiv = row.closest('.punter-section');
+        punterDiv.querySelector('.next-bet').disabled = true;
     }
     row.cells[7].textContent = status;
 
