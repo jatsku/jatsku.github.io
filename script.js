@@ -1,32 +1,10 @@
-// Google Sheets API Configuration
-const SPREADSHEET_ID = '1o8PKRxaSY8zOSIQcVvzyer6SXWFXurV0HXx7VLs8R58'; // Your Spreadsheet ID
-const CLIENT_ID = '110408053185578219774'; // Your Client ID
-const API_KEY = 'AIzaSyBYd-PHgsPxctMpFUqWUh9n25ZGdl644l0'; // Your API Key
-const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
-const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
-
-// Load Google API Client and Auth2 libraries
-function initGoogleSheetsAPI() {
-    gapi.load('client:auth2', () => {
-        gapi.client.init({
-            apiKey: API_KEY,
-            clientId: CLIENT_ID,
-            discoveryDocs: DISCOVERY_DOCS,
-            scope: SCOPES
-        }).then(() => {
-            // API is ready, load punter data
-            loadPunterData();
-            updateOverallProfit();
-        }).catch(err => {
-            console.error("Error initializing Google Sheets API:", err);
-            alert("Failed to initialize Google Sheets API. Check console for details.");
-        });
-    });
-}
+// Google Apps Script API URL
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyD2CtNFaNCwzE3EUyU3jkWKhwHKAHjF868Z649AkxCO53m8EAjCLdeUEnbv-WLSyk/exec';
 
 // Load existing data on page load
 document.addEventListener('DOMContentLoaded', () => {
-    initGoogleSheetsAPI();
+    loadPunterData();
+    updateOverallProfit();
 
     const addPunterButton = document.getElementById('add-punter');
     addPunterButton.addEventListener('click', () => {
@@ -90,19 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function loadPunterDataFromSheets() {
     try {
-        const response = await gapi.client.sheets.spreadsheets.values.get({
-            spreadsheetId: SPREADSHEET_ID,
-            range: 'Sheet1!A2:C'
-        });
-        const rows = response.result.values || [];
-        const punterData = {};
-        rows.forEach(row => {
-            const [name, bets, history] = row;
-            punterData[name] = {
-                bets: bets ? JSON.parse(bets) : [],
-                history: history ? JSON.parse(history) : []
-            };
-        });
+        const response = await fetch(`${APPS_SCRIPT_URL}?method=get`);
+        if (!response.ok) throw new Error('Failed to fetch data from Apps Script');
+        const punterData = await response.json();
         return punterData;
     } catch (err) {
         console.error("Error loading data from Google Sheets:", err);
@@ -112,32 +80,14 @@ async function loadPunterDataFromSheets() {
 
 async function savePunterDataToSheets(punterData) {
     try {
-        // First, load existing data to preserve other punters
-        const existingData = await loadPunterDataFromSheets();
-        Object.assign(existingData, punterData);
-
-        // Prepare data for writing
-        const rows = Object.entries(existingData).map(([name, data]) => [
-            name,
-            JSON.stringify(data.bets || []),
-            JSON.stringify(data.history || [])
-        ]);
-
-        // Clear existing data
-        await gapi.client.sheets.spreadsheets.values.clear({
-            spreadsheetId: SPREADSHEET_ID,
-            range: 'Sheet1!A2:C'
-        });
-
-        // Write new data
-        await gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId: SPREADSHEET_ID,
-            range: 'Sheet1!A2:C',
-            valueInputOption: 'RAW',
-            resource: {
-                values: rows
+        const response = await fetch(`${APPS_SCRIPT_URL}?method=set`, {
+            method: 'POST',
+            body: JSON.stringify(punterData),
+            headers: {
+                'Content-Type': 'application/json'
             }
         });
+        if (!response.ok) throw new Error('Failed to save data to Apps Script');
     } catch (err) {
         console.error("Error saving data to Google Sheets:", err);
     }
@@ -398,7 +348,7 @@ async function updateOverallProfit() {
             if (bet.outcome === 'W') {
                 overallProfit += bet.stake * (bet.odds - 1);
             } else if (bet.outcome === 'w') {
-                overallProfit += (bet.stake * (bet.odds - 1)) / 2;
+                overallProfit += (bet.stake * (odds - 1)) / 2;
             } else if (bet.outcome === 'L') {
                 overallProfit -= bet.stake;
             }
