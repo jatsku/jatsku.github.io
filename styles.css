@@ -5,7 +5,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    position: relative; /* Added for positioning overall-profit */
+    position: relative;
 }
 
 .button-container {
@@ -13,7 +13,7 @@ body {
     text-align: center;
 }
 
-#add-punter, #view-records, #export-data, #import-button, #clear-data {
+#add-punter, #view-records, #export-data, #import-button, #clear-data, #change-view {
     padding: 7.5px 15px;
     margin: 5px;
     border: none;
@@ -59,18 +59,21 @@ body {
 }
 
 #clear-data {
-    padding: 7.5px 15px;
-    margin: 5px;
     background-color: #f44336;
     color: white;
-    border: none;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 1.2em;
 }
 
 #clear-data:hover {
     background-color: #da190b;
+}
+
+#change-view {
+    background-color: #6a1b9a; /* Purple color for distinction */
+    color: white;
+}
+
+#change-view:hover {
+    background-color: #4a1370;
 }
 
 #punters-container {
@@ -80,6 +83,27 @@ body {
     justify-content: center;
     width: 100%;
     max-width: 1200px;
+}
+
+/* Default layout: 2x2 grid equivalent */
+#punters-container.two-column {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Single column layout */
+#punters-container.single-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Three column layout */
+#punters-container.three-column {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 .punter-section {
@@ -98,6 +122,25 @@ body {
     position: relative;
 }
 
+/* Adjust width for two-column layout */
+#punters-container.two-column .punter-section {
+    flex: 0 0 calc(50% - 10px); /* Two columns, accounting for gap */
+    max-width: calc(50% - 10px);
+}
+
+/* Adjust width for single-column layout */
+#punters-container.single-column .punter-section {
+    flex: 0 1 100%;
+    width: 100%;
+    max-width: 600px; /* Optional: cap width for readability */
+}
+
+/* Adjust width for three-column layout */
+#punters-container.three-column .punter-section {
+    flex: 0 0 calc(33.33% - 10px); /* Three columns, accounting for gap */
+    max-width: calc(33.33% - 10px);
+}
+
 /* Visual resize handle */
 .punter-section::after {
     content: '';
@@ -111,10 +154,11 @@ body {
 }
 
 @media (max-width: 860px) {
-    .punter-section {
+    #punters-container.two-column .punter-section,
+    #punters-container.three-column .punter-section {
         flex: 0 1 100%;
         width: 100%;
-        height: auto;
+        max-width: 100%;
     }
 }
 
@@ -153,7 +197,7 @@ body {
     box-sizing: border-box;
 }
 
-/* Adjusted column widths (removed Next Stake and Loss Streak) */
+/* Adjusted column widths */
 .punter-table th:nth-child(1), .punter-table td:nth-child(1) { width: 50px; } /* Stake */
 .punter-table th:nth-child(2), .punter-table td:nth-child(2) { width: 315px; } /* Game */
 .punter-table th:nth-child(3), .punter-table td:nth-child(3) { width: 50px; } /* Odds */
@@ -234,10 +278,10 @@ body {
 }
 
 #overall-profit {
-    position: absolute; /* Positioned in top-right */
+    position: absolute;
     top: 10px;
     right: 10px;
-    font-size: 0.9em; /* Reduced from 1.8em to 0.9em (half size) */
+    font-size: 0.9em;
     margin: 0;
     text-align: right;
 }
