@@ -202,14 +202,12 @@ function addPunter(name, existingBets = []) {
         <table class="punter-table">
             <thead>
                 <tr>
-                    <th>Bet #</th>
                     <th>Stake</th>
                     <th>Game</th>
                     <th>Odds</th>
                     <th>Outcome</th>
                     <th>Next Stake</th>
                     <th>Loss Streak</th>
-                    <th>Status</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -225,12 +223,11 @@ function addPunter(name, existingBets = []) {
         existingBets.forEach((bet, index) => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${index + 1}</td>
-                <td><input type="number" class="stake" value="${bet.stake}" min="1" ${bet.status === 'Stopped' ? 'disabled' : ''}></td>
-                <td><input type="text" class="game" value="${bet.game || ''}" ${bet.status === 'Stopped' ? 'disabled' : ''}></td>
-                <td><input type="number" class="odds" value="${bet.odds || ''}" step="0.01" min="1" ${bet.status === 'Stopped' ? 'disabled' : ''}></td>
+                <td><input type="number" class="stake" value="${bet.stake}" min="1"></td>
+                <td><input type="text" class="game" value="${bet.game || ''}"></td>
+                <td><input type="number" class="odds" value="${bet.odds || ''}" step="0.01" min="1"></td>
                 <td>
-                    <select class="outcome" ${bet.status === 'Stopped' ? 'disabled' : ''}>
+                    <select class="outcome">
                         <option value="">--</option>
                         <option value="W" ${bet.outcome === 'W' ? 'selected' : ''}>W (Big Win)</option>
                         <option value="w" ${bet.outcome === 'w' ? 'selected' : ''}>w (Small Win)</option>
@@ -240,22 +237,17 @@ function addPunter(name, existingBets = []) {
                 </td>
                 <td>${bet.nextStake !== '-' ? bet.nextStake.toFixed(2) : '-'}</td>
                 <td>${bet.lossStreak}</td>
-                <td>${bet.status}</td>
-                <td><button class="delete-bet" ${bet.status === 'Stopped' ? 'disabled' : ''}>Delete</button></td>
+                <td><button class="delete-bet">Delete</button></td>
             `;
             if (bet.outcome === 'W' || bet.outcome === 'w') row.classList.add('win');
             if (bet.outcome === 'L') row.classList.add('loss');
-            if (bet.status === 'Stopped') row.classList.add('stopped');
             tbody.appendChild(row);
-            if (bet.status !== 'Stopped') {
-                row.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, name));
-                row.querySelector('.delete-bet').addEventListener('click', () => deleteBet(name, index));
-            }
+            row.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, name));
+            row.querySelector('.delete-bet').addEventListener('click', () => deleteBet(name, index));
         });
     } else {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>1</td>
             <td><input type="number" class="stake" value="10" min="1"></td>
             <td><input type="text" class="game" placeholder="Enter game"></td>
             <td><input type="number" class="odds" placeholder="Enter odds" step="0.01" min="1"></td>
@@ -270,17 +262,11 @@ function addPunter(name, existingBets = []) {
             </td>
             <td>-</td>
             <td>0</td>
-            <td>Active</td>
             <td><button class="delete-bet">Delete</button></td>
         `;
         tbody.appendChild(row);
         row.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, name));
         row.querySelector('.delete-bet').addEventListener('click', () => deleteBet(name, 0));
-    }
-
-    const lastRow = tbody.querySelector('tr:last-child');
-    if (lastRow && lastRow.cells[7].textContent === 'Stopped') {
-        punterDiv.querySelector('.next-bet').disabled = true;
     }
 
     updateProfitLoss(name);
@@ -312,8 +298,7 @@ function updateBet(event, punterName) {
     const stake = parseFloat(row.querySelector('.stake').value);
     const odds = parseFloat(row.querySelector('.odds').value) || 0;
     let nextStake = stake;
-    let lossStreak = parseInt(row.cells[6].textContent);
-    let status = 'Active';
+    let lossStreak = parseInt(row.cells[4].textContent); // Adjusted index for Loss Streak
 
     if (outcome === 'W') {
         lossStreak = 0;
@@ -329,22 +314,8 @@ function updateBet(event, punterName) {
         row.classList.add('loss');
     }
 
-    row.cells[5].textContent = nextStake.toFixed(2);
-    row.cells[6].textContent = lossStreak;
-
-    if (lossStreak >= 3) {
-        status = 'Stopped';
-        row.classList.add('stopped');
-        row.cells[5].textContent = '-';
-        row.querySelector('.stake').disabled = true;
-        row.querySelector('.game').disabled = true;
-        row.querySelector('.odds').disabled = true;
-        row.querySelector('.outcome').disabled = true;
-        row.querySelector('.delete-bet').disabled = true;
-        const punterDiv = row.closest('.punter-section');
-        punterDiv.querySelector('.next-bet').disabled = true;
-    }
-    row.cells[7].textContent = status;
+    row.cells[3].textContent = nextStake.toFixed(2); // Adjusted index for Next Stake
+    row.cells[4].textContent = lossStreak; // Adjusted index for Loss Streak
 
     const game = row.querySelector('.game').value;
     const betData = {
@@ -352,9 +323,8 @@ function updateBet(event, punterName) {
         game: game,
         odds: odds,
         outcome: outcome,
-        nextStake: row.cells[5].textContent,
-        lossStreak: lossStreak,
-        status: status
+        nextStake: row.cells[3].textContent,
+        lossStreak: lossStreak
     };
     const tbody = document.getElementById(`bets-${punterName}`);
     const bets = Array.from(tbody.querySelectorAll('tr')).map(row => {
@@ -363,9 +333,8 @@ function updateBet(event, punterName) {
             game: row.querySelector('.game').value,
             odds: parseFloat(row.querySelector('.odds').value) || 0,
             outcome: row.querySelector('.outcome').value,
-            nextStake: row.cells[5].textContent,
-            lossStreak: parseInt(row.cells[6].textContent),
-            status: row.cells[7].textContent
+            nextStake: row.cells[3].textContent,
+            lossStreak: parseInt(row.cells[4].textContent)
         };
     });
     savePunterData(punterName, bets);
@@ -379,16 +348,11 @@ function addNextBet(punterName) {
     const lastRow = tbody.querySelector('tr:last-child');
     if (!lastRow) return;
 
-    const lastStatus = lastRow.cells[7].textContent; // Fixed syntax error
-    if (lastStatus === 'Stopped') return;
-
-    const lastNextStake = parseFloat(lastRow.cells[5].textContent);
-    const lastLossStreak = parseInt(lastRow.cells[6].textContent);
-    const newBetNumber = parseInt(lastRow.cells[0].textContent) + 1;
+    const lastNextStake = parseFloat(lastRow.cells[3].textContent); // Adjusted index for Next Stake
+    const lastLossStreak = parseInt(lastRow.cells[4].textContent); // Adjusted index for Loss Streak
 
     const newRow = document.createElement('tr');
     newRow.innerHTML = `
-        <td>${newBetNumber}</td>
         <td><input type="number" class="stake" value="${lastNextStake.toFixed(2)}" min="1"></td>
         <td><input type="text" class="game" placeholder="Enter game"></td>
         <td><input type="number" class="odds" placeholder="Enter odds" step="0.01" min="1"></td>
@@ -403,12 +367,11 @@ function addNextBet(punterName) {
         </td>
         <td>-</td>
         <td>${lastLossStreak}</td>
-        <td>Active</td>
         <td><button class="delete-bet">Delete</button></td>
     `;
     tbody.appendChild(newRow);
     newRow.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, punterName));
-    newRow.querySelector('.delete-bet').addEventListener('click', () => deleteBet(punterName, newBetNumber - 1));
+    newRow.querySelector('.delete-bet').addEventListener('click', () => deleteBet(punterName, tbody.children.length - 1));
 }
 
 function deleteBet(punterName, betIndex) {
@@ -420,9 +383,6 @@ function deleteBet(punterName, betIndex) {
     }
 
     tbody.deleteRow(betIndex);
-    Array.from(tbody.querySelectorAll('tr')).forEach((row, index) => {
-        row.cells[0].textContent = index + 1;
-    });
 
     const bets = Array.from(tbody.querySelectorAll('tr')).map(row => {
         return {
@@ -430,9 +390,8 @@ function deleteBet(punterName, betIndex) {
             game: row.querySelector('.game').value,
             odds: parseFloat(row.querySelector('.odds').value) || 0,
             outcome: row.querySelector('.outcome').value,
-            nextStake: row.cells[5].textContent,
-            lossStreak: parseInt(row.cells[6].textContent),
-            status: row.cells[7].textContent
+            nextStake: row.cells[3].textContent,
+            lossStreak: parseInt(row.cells[4].textContent)
         };
     });
     savePunterData(punterName, bets);
