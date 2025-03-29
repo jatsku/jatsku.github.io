@@ -87,7 +87,7 @@ body {
     border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     flex: 0 0 auto;
-    width: 425px; /* Increased from 330px to accommodate larger table */
+    width: 425px;
     min-width: 300px;
     height: 375px;
     min-height: 300px;
@@ -109,7 +109,7 @@ body {
     cursor: se-resize;
 }
 
-@media (max-width: 730px) {
+@media (max-width: 860px) {
     .punter-section {
         flex: 0 1 100%;
         width: 100%;
@@ -152,21 +152,19 @@ body {
     box-sizing: border-box;
 }
 
-/* Adjusted column widths */
-.punter-table th:nth-child(1), .punter-table td:nth-child(1) { width: 22.5px; } /* Bet # */
-.punter-table th:nth-child(2), .punter-table td:nth-child(2) { width: 37.5px; } /* Stake */
-.punter-table th:nth-child(3), .punter-table td:nth-child(3) { width: 195px; } /* Game (increased from 145px) */
-.punter-table th:nth-child(4), .punter-table td:nth-child(4) { width: 37.5px; } /* Odds */
-.punter-table th:nth-child(5), .punter-table td:nth-child(5) { width: 7.5px; } /* Outcome */
-.punter-table th:nth-child(6), .punter-table td:nth-child(6) { width: 6px; } /* Next Stake */
-.punter-table th:nth-child(7), .punter-table td:nth-child(7) { width: 6px; } /* Loss Streak */
-.punter-table th:nth-child(8), .punter-table td:nth-child(8) { width: 37.5px; } /* Status */
-.punter-table th:nth-child(9), .punter-table td:nth-child(9) { width: 45px; } /* Actions */
+/* Adjusted column widths (after removing Bet # and Status) */
+.punter-table th:nth-child(1), .punter-table td:nth-child(1) { width: 37.5px; } /* Stake */
+.punter-table th:nth-child(2), .punter-table td:nth-child(2) { width: 315px; } /* Game */
+.punter-table th:nth-child(3), .punter-table td:nth-child(3) { width: 37.5px; } /* Odds */
+.punter-table th:nth-child(4), .punter-table td:nth-child(4) { width: 7.5px; } /* Outcome */
+.punter-table th:nth-child(5), .punter-table td:nth-child(5) { width: 6px; } /* Next Stake */
+.punter-table th:nth-child(6), .punter-table td:nth-child(6) { width: 6px; } /* Loss Streak */
+.punter-table th:nth-child(7), .punter-table td:nth-child(7) { width: 45px; } /* Actions */
 
 /* Adjust font size for smaller columns to improve readability */
+.punter-table th:nth-child(4), .punter-table td:nth-child(4),
 .punter-table th:nth-child(5), .punter-table td:nth-child(5),
-.punter-table th:nth-child(6), .punter-table td:nth-child(6),
-.punter-table th:nth-child(7), .punter-table td:nth-child(7) {
+.punter-table th:nth-child(6), .punter-table td:nth-child(6) {
     font-size: 0.7em; /* Reduced font size for these columns */
 }
 
