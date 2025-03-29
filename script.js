@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const importButton = document.getElementById('import-button');
     const importInput = document.getElementById('import-data');
     const clearDataButton = document.getElementById('clear-data');
+    const changeViewButton = document.getElementById('change-view'); // New button
     const closeModal = document.getElementById('close-modal');
     const recordsModal = document.getElementById('records-modal');
 
@@ -18,12 +19,18 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Import Button:', importButton);
     console.log('Import Input:', importInput);
     console.log('Clear Data Button:', clearDataButton);
+    console.log('Change View Button:', changeViewButton);
     console.log('Close Modal Button:', closeModal);
     console.log('Records Modal:', recordsModal);
 
     // Load existing data
     loadPunterData();
     updateOverallProfit();
+
+    // Set initial layout
+    const puntersContainer = document.getElementById('punters-container');
+    puntersContainer.classList.add('two-column'); // Start with 2-column layout
+    let currentLayout = 'two-column';
 
     // Add Punter button
     if (addPunterButton) {
@@ -128,6 +135,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     } else {
         console.error('Clear Data button not found');
+    }
+
+    // Change View button
+    if (changeViewButton) {
+        changeViewButton.addEventListener('click', () => {
+            console.log('Change View button clicked');
+            puntersContainer.classList.remove('two-column', 'single-column', 'three-column');
+            if (currentLayout === 'two-column') {
+                puntersContainer.classList.add('single-column');
+                currentLayout = 'single-column';
+                changeViewButton.textContent = 'Change View (Single)';
+            } else if (currentLayout === 'single-column') {
+                puntersContainer.classList.add('three-column');
+                currentLayout = 'three-column';
+                changeViewButton.textContent = 'Change View (3-Column)';
+            } else {
+                puntersContainer.classList.add('two-column');
+                currentLayout = 'two-column';
+                changeViewButton.textContent = 'Change View (2-Column)';
+            }
+        });
+    } else {
+        console.error('Change View button not found');
     }
 });
 
