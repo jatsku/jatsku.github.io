@@ -33,7 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async loadPunters() {
-            const { data: punters, error } = await this.supabaseClient.from('punters').select('*');
+            const { data: punters, error } = await this.supabaseClient
+                .from('punters')
+                .select('*')
+                .eq('closed', false); // Only load active punters
             if (error) {
                 console.error('Error loading punters:', error);
                 return;
@@ -54,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async handleAddPunter() {
             const name = prompt('Enter punter name:');
             if (!name) return;
-            const { error } = await this.supabaseClient.from('punters').insert({ name });
+            const { error } = await this.supabaseClient.from('punters').insert({ name, closed: false });
             if (error) {
                 console.error('Add punter error:', error.message, error.code);
                 alert('Failed to add punter: ' + error.message);
@@ -209,12 +212,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async updateOverallProfit() {
             try {
-                // Add a small delay to ensure DB updates propagate
-                await new Promise(resolve => setTimeout(resolve, 500));
-
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 const [bets, history] = await Promise.all([
                     this.supabaseClient.from('bets').select('stake, odds, outcome'),
-                    this.supabaseClient.from('history').select('profitloss')
+                    this.supabaseClient.from('history').select('*')
                 ]);
 
                 console.log('Bets data:', bets.data);
@@ -234,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (history.data && history.data.length > 0) {
                     profit += history.data.reduce((sum, record) => {
                         const pl = Number(record.profitloss);
-                        console.log('History record profitloss:', record.profitloss, 'Converted:', pl);
+                        console.log('History record:', record, 'Profitloss:', pl);
                         return sum + (isNaN(pl) ? 0 : pl);
                     }, 0);
                 }
@@ -292,13 +293,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 console.log('Successfully inserted into history:', historyData);
 
-                const [betsDelete, punterDelete] = await Promise.all([
-                    this.supabaseClient.from('bets').delete().eq('punter_id', punter.id),
-                    this.supabaseClient.from('punters').delete().eq('id', punter.id)
-                ]);
+                // Mark punter as closed instead of deleting
+                const { error: updateError } = await this.supabaseClient
+                    .from('punters')
+                    .update({ closed: true })
+                    .eq('id', punter.id);
+                if (updateError) {
+                    console.error('Error marking punter as closed:', updateError);
+                    alert('Failed to close punter: ' + updateError.message);
+                    return;
+                }
 
-                if (betsDelete.error) console.error('Error deleting bets:', betsDelete.error);
-                if (punterDelete.error) console.error('Error deleting punter:', punterDelete.error);
+                const { error: betsDeleteError } = await this.supabaseClient
+                    .from('bets')
+                    .delete()
+                    .eq('punter_id', punter.id);
+                if (betsDeleteError) console.error('Error deleting bets:', betsDeleteError);
             } else {
                 console.error('No punter found with name:', name);
             }
@@ -319,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Failed to load records: ' + error.message);
                 return;
             }
-            console.log('History data:', history);
+            console.log('History data in showRecords:', history);
 
             const grouped = {};
             history.forEach(record => {
