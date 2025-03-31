@@ -209,6 +209,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async updateOverallProfit() {
             try {
+                // Add a small delay to ensure DB updates propagate
+                await new Promise(resolve => setTimeout(resolve, 500));
+
                 const [bets, history] = await Promise.all([
                     this.supabaseClient.from('bets').select('stake, odds, outcome'),
                     this.supabaseClient.from('history').select('profitloss')
@@ -231,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (history.data && history.data.length > 0) {
                     profit += history.data.reduce((sum, record) => {
                         const pl = Number(record.profitloss);
+                        console.log('History record profitloss:', record.profitloss, 'Converted:', pl);
                         return sum + (isNaN(pl) ? 0 : pl);
                     }, 0);
                 }
