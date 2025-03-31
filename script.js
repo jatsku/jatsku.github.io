@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const { data: punters, error } = await this.supabaseClient
                 .from('punters')
                 .select('*')
-                .eq('closed', false); // Only load active punters
+                .eq('closed', false);
             if (error) {
                 console.error('Error loading punters:', error);
                 return;
@@ -212,10 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async updateOverallProfit() {
             try {
-                await new Promise(resolve => setTimeout(resolve, 1000));
                 const [bets, history] = await Promise.all([
                     this.supabaseClient.from('bets').select('stake, odds, outcome'),
-                    this.supabaseClient.from('history').select('*')
+                    this.supabaseClient.from('history').select('profitloss')
                 ]);
 
                 console.log('Bets data:', bets.data);
@@ -235,7 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (history.data && history.data.length > 0) {
                     profit += history.data.reduce((sum, record) => {
                         const pl = Number(record.profitloss);
-                        console.log('History record:', record, 'Profitloss:', pl);
                         return sum + (isNaN(pl) ? 0 : pl);
                     }, 0);
                 }
@@ -293,7 +291,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 console.log('Successfully inserted into history:', historyData);
 
-                // Mark punter as closed instead of deleting
                 const { error: updateError } = await this.supabaseClient
                     .from('punters')
                     .update({ closed: true })
