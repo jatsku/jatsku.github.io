@@ -12,6 +12,9 @@ const supabaseClient = createClient(
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96YW9sa2RreGd3cW95em1namNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0MzI4NzcsImV4cCI6MjA1OTAwODg3N30.kX_b_eEvKtljidsJf0xZkhx9OMMabdyg2BO0xVswkls'
 );
 
+// Object to track consecutive losses for each punter
+const consecutiveLosses = {};
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOMContentLoaded event fired');
 
@@ -57,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const { error } = await supabaseClient.from('punters').insert({ name });
                 if (error) console.error('Error adding punter:', error);
                 else {
+                    consecutiveLosses[name] = 0; // Initialize consecutive losses for new punter
                     addPunter(name);
                     updateOverallProfit();
                 }
@@ -227,7 +231,10 @@ async function loadPunterData() {
     for (const punter of punters) {
         const { data: bets, error: betsError } = await supabaseClient.from('bets').select('*').eq('punter_id', punter.id);
         if (betsError) console.error('Error loading bets for punter:', punter.name, betsError);
-        else addPunter(punter.name, bets || []);
+        else {
+            consecutiveLosses[punter.name] = calculateConsecutiveLosses(bets || []);
+            addPunter(punter.name, bets || []);
+        }
     }
 }
 
@@ -265,6 +272,8 @@ async function savePunterHistory(name, profitLoss) {
         console.log(`Successfully saved history for ${name}: Profit/Loss = ${profitLoss}`);
     }
     await supabaseClient.from('bets').delete().eq('punter_id', punterId);
+    await supabaseClient.from('punters').delete().eq('id', punterId); // Remove punter after closing
+    delete consecutiveLosses[name]; // Clear consecutive losses tracking
 }
 
 function addPunter(name, existingBets = []) {
@@ -345,6 +354,7 @@ function addPunter(name, existingBets = []) {
     }
 
     updateProfitLoss(name);
+    updateNextBetButton(name); // Check if Next Bet should be disabled
 
     punterDiv.querySelector('.close-punter').addEventListener('click', async () => {
         if (confirm(`Are you sure you want to close ${name}'s record?`)) {
@@ -356,6 +366,33 @@ function addPunter(name, existingBets = []) {
     });
 
     punterDiv.querySelector('.next-bet').addEventListener('click', () => addNextBet(name));
+}
+
+function calculateConsecutiveLosses(bets) {
+    let count = 0;
+    for (let i = bets.length - 1; i >= 0; i--) {
+        const outcome = bets[i].outcome;
+        if (outcome === 'L') {
+            count++;
+        } else if (outcome === 'W' || outcome === 'w' || outcome === 'D') {
+            break;
+        }
+    }
+    return count;
+}
+
+function updateNextBetButton(punterName) {
+    const nextBetButton = document.querySelector(`.next-bet[data-punter="${punterName}"]`);
+    if (consecutiveLosses[punterName] >= 3) {
+        nextBetButton.disabled = true;
+        nextBetButton.style.backgroundColor = '#ccc';
+        nextBetButton.style.cursor = 'not-allowed';
+        alert(`${punterName} has 3 consecutive losses. You can only close this punter or view records.`);
+    } else {
+        nextBetButton.disabled = false;
+        nextBetButton.style.backgroundColor = '';
+        nextBetButton.style.cursor = '';
+    }
 }
 
 async function updateBet(event, punterName) {
@@ -376,11 +413,21 @@ async function updateBet(event, punterName) {
     }));
     await savePunterData(punterName, bets);
 
+    // Update consecutive losses
+    consecutiveLosses[punterName] = calculateConsecutiveLosses(bets);
+    console.log(`Consecutive losses for ${punterName}: ${consecutiveLosses[punterName]}`);
+    updateNextBetButton(punterName);
+
     updateProfitLoss(punterName);
     updateOverallProfit();
 }
 
 function addNextBet(punterName) {
+    if (consecutiveLosses[punterName] >= 3) {
+        alert(`${punterName} has 3 consecutive losses. You can only close this punter or view records.`);
+        return;
+    }
+
     const tbody = document.getElementById(`bets-${punterName}`);
     const lastRow = tbody.querySelector('tr:last-child');
     if (!lastRow) return;
@@ -423,6 +470,11 @@ async function deleteBet(punterName, betIndex) {
         outcome: row.querySelector('.outcome').value
     }));
     await savePunterData(punterName, bets);
+
+    // Update consecutive losses
+    consecutiveLosses[punterName] = calculateConsecutiveLosses(bets);
+    console.log(`Consecutive losses for ${punterName}: ${consecutiveLosses[punterName]}`);
+    updateNextBetButton(punterName);
 
     updateProfitLoss(punterName);
     updateOverallProfit();
@@ -473,36 +525,25 @@ async function updateOverallProfit() {
     let overallProfit = 0;
 
     // Calculate profit/loss from active bets
-    if (bets && bets.length > 0) {
+    if (bets) {
         console.log('Active bets:', bets);
         bets.forEach(bet => {
             if (bet.outcome === 'W') overallProfit += bet.stake * (bet.odds - 1);
             else if (bet.outcome === 'w') overallProfit += (bet.stake * (bet.odds - 1)) / 2;
             else if (bet.outcome === 'L') overallProfit -= bet.stake;
         });
-    } else {
-        console.log('No active bets found.');
     }
 
     // Add profit/loss from history
-    if (history && history.length > 0) {
+    if (history) {
         console.log('History records:', history);
-        history.forEach(record => {
-            overallProfit += record.profitLoss;
-        });
-    } else {
-        console.log('No history records found.');
+        history.forEach(record => overallProfit += record.profitLoss);
     }
 
     console.log('Calculated overall profit/loss:', overallProfit);
-
     const overallProfitDiv = document.getElementById('overall-profit');
-    if (overallProfitDiv) {
-        overallProfitDiv.textContent = `Overall Profit/Loss: $${overallProfit.toFixed(2)}`;
-        overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
-    } else {
-        console.error('Overall Profit div not found');
-    }
+    overallProfitDiv.textContent = `Overall Profit/Loss: $${overallProfit.toFixed(2)}`;
+    overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
 }
 
 async function showRecords() {
@@ -512,33 +553,29 @@ async function showRecords() {
         console.error('Error fetching punters for records:', puntersError);
         return;
     }
-    const { data: history, error: historyError } = await supabaseClient.from('history').select('punter_id, timestamp, profitLoss');
+    const { data: history, error: historyError } = await supabaseClient.from('history').select('*, punters(name)').order('timestamp', { ascending: false });
     if (historyError) {
         console.error('Error fetching history for records:', historyError);
         return;
     }
 
-    console.log('Punters:', punters);
-    console.log('History:', history);
+    console.log('History data:', history);
 
     const recordsContent = document.getElementById('records-content');
     let html = '<table><thead><tr><th>Punter</th><th>Most Recent Date</th><th>Total Profit/Loss</th></tr></thead><tbody>';
 
-    const groupedRecords = {};
-    if (punters && history && history.length > 0) {
-        for (const punter of punters) {
-            const punterHistory = history.filter(h => h.punter_id === punter.id);
-            if (punterHistory.length === 0) continue;
-
-            let totalProfitLoss = 0;
-            let mostRecentDate = null;
-            punterHistory.forEach(record => {
-                totalProfitLoss += record.profitLoss;
-                const recordDate = new Date(record.timestamp);
-                if (!mostRecentDate || recordDate > mostRecentDate) mostRecentDate = recordDate;
-            });
-
-            groupedRecords[punter.name] = { totalProfitLoss, mostRecentDate };
+    if (history && history.length > 0) {
+        const groupedRecords = {};
+        for (const record of history) {
+            const punterName = record.punters?.name || 'Unknown';
+            if (!groupedRecords[punterName]) {
+                groupedRecords[punterName] = { totalProfitLoss: 0, mostRecentDate: null };
+            }
+            groupedRecords[punterName].totalProfitLoss += record.profitLoss;
+            const recordDate = new Date(record.timestamp);
+            if (!groupedRecords[punterName].mostRecentDate || recordDate > groupedRecords[punterName].mostRecentDate) {
+                groupedRecords[punterName].mostRecentDate = recordDate;
+            }
         }
 
         const sortedPunterNames = Object.keys(groupedRecords).sort();
