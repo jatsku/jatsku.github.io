@@ -1,86 +1,64 @@
-// Load existing data on page load
+// Initialize Supabase client
+const { createClient } = Supabase;
+const supabase = createClient(
+    'https://ozaolkdkxgwqoyzmgjcd.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96YW9sa2RreGd3cW95em1namNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0MzI4NzcsImV4cCI6MjA1OTAwODg3N30.kX_b_eEvKtljidsJf0xZkhx9OMMabdyg2BO0xVswkls'
+);
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOMContentLoaded event fired');
 
-    // Verify all elements exist
     const addPunterButton = document.getElementById('add-punter');
     const viewRecordsButton = document.getElementById('view-records');
     const exportButton = document.getElementById('export-data');
     const importButton = document.getElementById('import-button');
     const importInput = document.getElementById('import-data');
     const clearDataButton = document.getElementById('clear-data');
-    const changeViewButton = document.getElementById('change-view'); // New button
+    const changeViewButton = document.getElementById('change-view');
     const closeModal = document.getElementById('close-modal');
     const recordsModal = document.getElementById('records-modal');
 
-    console.log('Add Punter Button:', addPunterButton);
-    console.log('View Records Button:', viewRecordsButton);
-    console.log('Export Data Button:', exportButton);
-    console.log('Import Button:', importButton);
-    console.log('Import Input:', importInput);
-    console.log('Clear Data Button:', clearDataButton);
-    console.log('Change View Button:', changeViewButton);
-    console.log('Close Modal Button:', closeModal);
-    console.log('Records Modal:', recordsModal);
-
-    // Load existing data
     loadPunterData();
     updateOverallProfit();
 
-    // Set initial layout
     const puntersContainer = document.getElementById('punters-container');
-    puntersContainer.classList.add('two-column'); // Start with 2-column layout
+    puntersContainer.classList.add('two-column');
     let currentLayout = 'two-column';
 
-    // Add Punter button
     if (addPunterButton) {
-        addPunterButton.addEventListener('click', () => {
-            console.log('Add Punter button clicked');
+        addPunterButton.addEventListener('click', async () => {
             const name = prompt('Enter punter name:');
-            if (name) addPunter(name);
-        });
-    } else {
-        console.error('Add Punter button not found');
-    }
-
-    // View Records button
-    if (viewRecordsButton) {
-        viewRecordsButton.addEventListener('click', () => {
-            console.log('View Records button clicked');
-            showRecords();
-        });
-    } else {
-        console.error('View Records button not found');
-    }
-
-    // Close Modal button
-    if (closeModal) {
-        closeModal.addEventListener('click', () => {
-            console.log('Close Modal button clicked');
-            document.getElementById('records-modal').style.display = 'none';
-        });
-    } else {
-        console.error('Close Modal button not found');
-    }
-
-    // Modal click outside to close
-    if (recordsModal) {
-        window.addEventListener('click', (event) => {
-            if (event.target === recordsModal) {
-                console.log('Clicked outside modal to close');
-                recordsModal.style.display = 'none';
+            if (name) {
+                const { error } = await supabase.from('punters').insert({ name });
+                if (error) console.error('Error adding punter:', error);
+                else addPunter(name);
             }
         });
-    } else {
-        console.error('Records Modal not found');
     }
 
-    // Export Data button
+    if (viewRecordsButton) {
+        viewRecordsButton.addEventListener('click', showRecords);
+    }
+
+    if (closeModal) {
+        closeModal.addEventListener('click', () => {
+            recordsModal.style.display = 'none';
+        });
+    }
+
+    if (recordsModal) {
+        window.addEventListener('click', (event) => {
+            if (event.target === recordsModal) recordsModal.style.display = 'none';
+        });
+    }
+
     if (exportButton) {
-        exportButton.addEventListener('click', () => {
-            console.log('Export Data button clicked');
-            const punterData = loadPunterDataFromStorage();
-            const dataStr = JSON.stringify(punterData, null, 2);
+        exportButton.addEventListener('click', async () => {
+            const { data: punters } = await supabase.from('punters').select('*');
+            const { data: bets } = await supabase.from('bets').select('*');
+            const { data: history } = await supabase.from('history').select('*');
+            const exportData = { punters, bets, history };
+            const dataStr = JSON.stringify(exportData, null, 2);
             const blob = new Blob([dataStr], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -89,58 +67,48 @@ document.addEventListener('DOMContentLoaded', () => {
             a.click();
             URL.revokeObjectURL(url);
         });
-    } else {
-        console.error('Export Data button not found');
     }
 
-    // Import Data button
     if (importButton && importInput) {
-        importButton.addEventListener('click', () => {
-            console.log('Import Data button clicked');
-            importInput.click();
-        });
-        importInput.addEventListener('change', (event) => {
-            console.log('Import Input changed');
+        importButton.addEventListener('click', () => importInput.click());
+        importInput.addEventListener('change', async (event) => {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (e) => {
+                reader.onload = async (e) => {
                     try {
                         const importedData = JSON.parse(e.target.result);
-                        savePunterDataToStorage(importedData);
+                        await supabase.from('punters').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                        await supabase.from('bets').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                        await supabase.from('history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                        await supabase.from('punters').insert(importedData.punters);
+                        await supabase.from('bets').insert(importedData.bets);
+                        await supabase.from('history').insert(importedData.history);
                         alert('Data imported successfully! Reloading page...');
                         location.reload();
                     } catch (err) {
-                        alert('Error importing data: Invalid JSON file.');
+                        alert('Error importing data: ' + err.message);
                     }
                 };
                 reader.readAsText(file);
             }
         });
-    } else {
-        console.error('Import Button or Input not found');
     }
 
-    // Clear Data button
     if (clearDataButton) {
-        clearDataButton.addEventListener('click', () => {
-            console.log('Clear Data button clicked');
+        clearDataButton.addEventListener('click', async () => {
             if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
-                console.log('Before clearing:', localStorage.getItem('punterData'));
-                localStorage.setItem('punterData', JSON.stringify({}));
-                console.log('After clearing:', localStorage.getItem('punterData'));
+                await supabase.from('bets').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabase.from('history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabase.from('punters').delete().neq('id', '00000000-0000-0000-0000-000000000000');
                 alert('All data cleared! Reloading page...');
                 window.location.reload(true);
             }
         });
-    } else {
-        console.error('Clear Data button not found');
     }
 
-    // Change View button
     if (changeViewButton) {
         changeViewButton.addEventListener('click', () => {
-            console.log('Change View button clicked');
             puntersContainer.classList.remove('two-column', 'single-column', 'three-column');
             if (currentLayout === 'two-column') {
                 puntersContainer.classList.add('single-column');
@@ -156,65 +124,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 changeViewButton.textContent = 'Change View (2-Column)';
             }
         });
-    } else {
-        console.error('Change View button not found');
     }
 });
 
-function loadPunterDataFromStorage() {
-    const data = localStorage.getItem('punterData');
-    try {
-        return data ? JSON.parse(data) : {};
-    } catch (err) {
-        console.error('Error parsing punterData from localStorage:', err);
-        localStorage.setItem('punterData', JSON.stringify({}));
-        return {};
+async function loadPunterData() {
+    const { data: punters, error } = await supabase.from('punters').select('*');
+    if (error) {
+        console.error('Error loading punters:', error);
+        return;
+    }
+    for (const punter of punters) {
+        const { data: bets } = await supabase.from('bets').select('*').eq('punter_id', punter.id);
+        addPunter(punter.name, bets || []);
     }
 }
 
-function savePunterDataToStorage(punterData) {
-    try {
-        localStorage.setItem('punterData', JSON.stringify(punterData));
-    } catch (err) {
-        console.error('Error saving punterData to localStorage:', err);
+async function savePunterData(name, bets) {
+    const { data: punter, error: punterError } = await supabase.from('punters').select('id').eq('name', name).single();
+    if (punterError) console.error('Error fetching punter:', punterError);
+    const punterId = punter.id;
+    await supabase.from('bets').delete().eq('punter_id', punterId);
+    if (bets.length > 0) {
+        const betData = bets.map(bet => ({ ...bet, punter_id: punterId }));
+        const { error } = await supabase.from('bets').insert(betData);
+        if (error) console.error('Error saving bets:', error);
     }
 }
 
-function loadPunterData() {
-    const punterData = loadPunterDataFromStorage();
-    console.log('Loaded punterData:', punterData);
-    for (const name in punterData) {
-        addPunter(name, punterData[name].bets || []);
-    }
-}
-
-function savePunterData(name, bets) {
-    const punterData = loadPunterDataFromStorage();
-    punterData[name] = punterData[name] || { bets: [], history: [] };
-    punterData[name].bets = bets;
-    savePunterDataToStorage(punterData);
-}
-
-function savePunterHistory(name, profitLoss) {
-    const punterData = loadPunterDataFromStorage();
-    console.log(`Saving history for ${name}:`, { profitLoss });
-    punterData[name] = punterData[name] || { bets: [], history: [] };
-    if (!punterData[name].history) punterData[name].history = [];
-    punterData[name].history.push({
+async function savePunterHistory(name, profitLoss) {
+    const { data: punter } = await supabase.from('punters').select('id').eq('name', name).single();
+    const punterId = punter.id;
+    const { error } = await supabase.from('history').insert({
+        punter_id: punterId,
         timestamp: new Date().toISOString(),
-        profitLoss: profitLoss
+        profitLoss
     });
-    punterData[name].bets = [];
-    console.log(`Updated punterData for ${name}:`, punterData[name]);
-    savePunterDataToStorage(punterData);
-}
-
-function removePunterData(name) {
-    const punterData = loadPunterDataFromStorage();
-    if (punterData[name]) {
-        punterData[name].bets = [];
-        savePunterDataToStorage(punterData);
-    }
+    if (error) console.error('Error saving history:', error);
+    await supabase.from('bets').delete().eq('punter_id', punterId);
 }
 
 function addPunter(name, existingBets = []) {
@@ -295,56 +241,35 @@ function addPunter(name, existingBets = []) {
 
     updateProfitLoss(name);
 
-    const closeButton = punterDiv.querySelector('.close-punter');
-    console.log(`Close button for ${name}:`, closeButton);
-    closeButton.addEventListener('click', () => {
-        console.log(`Close button clicked for ${name}`);
+    punterDiv.querySelector('.close-punter').addEventListener('click', async () => {
         if (confirm(`Are you sure you want to close ${name}'s record?`)) {
             const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
-            savePunterHistory(name, profitLoss);
+            await savePunterHistory(name, profitLoss);
             punterDiv.remove();
-            removePunterData(name);
             updateOverallProfit();
         }
     });
 
-    const nextBetButton = punterDiv.querySelector('.next-bet');
-    console.log(`Next Bet button for ${name}:`, nextBetButton);
-    nextBetButton.addEventListener('click', () => {
-        console.log(`Next Bet button clicked for ${name}`);
-        addNextBet(name);
-    });
+    punterDiv.querySelector('.next-bet').addEventListener('click', () => addNextBet(name));
 }
 
-function updateBet(event, punterName) {
+async function updateBet(event, punterName) {
     const row = event.target.closest('tr');
     const outcome = event.target.value;
     const stake = parseFloat(row.querySelector('.stake').value);
     const odds = parseFloat(row.querySelector('.odds').value) || 0;
 
-    if (outcome === 'W' || outcome === 'w') {
-        row.classList.add('win');
-    } else if (outcome === 'L') {
-        row.classList.add('loss');
-    }
+    if (outcome === 'W' || outcome === 'w') row.classList.add('win');
+    else if (outcome === 'L') row.classList.add('loss');
 
     const game = row.querySelector('.game').value;
-    const betData = {
-        stake: stake,
-        game: game,
-        odds: odds,
-        outcome: outcome
-    };
-    const tbody = document.getElementById(`bets-${punterName}`);
-    const bets = Array.from(tbody.querySelectorAll('tr')).map(row => {
-        return {
-            stake: parseFloat(row.querySelector('.stake').value),
-            game: row.querySelector('.game').value,
-            odds: parseFloat(row.querySelector('.odds').value) || 0,
-            outcome: row.querySelector('.outcome').value
-        };
-    });
-    savePunterData(punterName, bets);
+    const bets = Array.from(document.getElementById(`bets-${punterName}`).querySelectorAll('tr')).map(row => ({
+        stake: parseFloat(row.querySelector('.stake').value),
+        game: row.querySelector('.game').value,
+        odds: parseFloat(row.querySelector('.odds').value) || 0,
+        outcome: row.querySelector('.outcome').value
+    }));
+    await savePunterData(punterName, bets);
 
     updateProfitLoss(punterName);
     updateOverallProfit();
@@ -356,7 +281,6 @@ function addNextBet(punterName) {
     if (!lastRow) return;
 
     const lastStake = parseFloat(lastRow.querySelector('.stake').value);
-
     const newRow = document.createElement('tr');
     newRow.innerHTML = `
         <td><input type="number" class="stake" value="${lastStake.toFixed(2)}" min="1"></td>
@@ -378,7 +302,7 @@ function addNextBet(punterName) {
     newRow.querySelector('.delete-bet').addEventListener('click', () => deleteBet(punterName, tbody.children.length - 1));
 }
 
-function deleteBet(punterName, betIndex) {
+async function deleteBet(punterName, betIndex) {
     const tbody = document.getElementById(`bets-${punterName}`);
     const rows = tbody.querySelectorAll('tr');
     if (rows.length === 1) {
@@ -387,16 +311,13 @@ function deleteBet(punterName, betIndex) {
     }
 
     tbody.deleteRow(betIndex);
-
-    const bets = Array.from(tbody.querySelectorAll('tr')).map(row => {
-        return {
-            stake: parseFloat(row.querySelector('.stake').value),
-            game: row.querySelector('.game').value,
-            odds: parseFloat(row.querySelector('.odds').value) || 0,
-            outcome: row.querySelector('.outcome').value
-        };
-    });
-    savePunterData(punterName, bets);
+    const bets = Array.from(tbody.querySelectorAll('tr')).map(row => ({
+        stake: parseFloat(row.querySelector('.stake').value),
+        game: row.querySelector('.game').value,
+        odds: parseFloat(row.querySelector('.odds').value) || 0,
+        outcome: row.querySelector('.outcome').value
+    }));
+    await savePunterData(punterName, bets);
 
     updateProfitLoss(punterName);
     updateOverallProfit();
@@ -413,13 +334,9 @@ function updateProfitLoss(punterName) {
         const odds = parseFloat(row.querySelector('.odds').value) || 0;
         const outcome = row.querySelector('.outcome').value;
 
-        if (outcome === 'W') {
-            totalProfitLoss += stake * (odds - 1);
-        } else if (outcome === 'w') {
-            totalProfitLoss += (stake * (odds - 1)) / 2;
-        } else if (outcome === 'L') {
-            totalProfitLoss -= stake;
-        }
+        if (outcome === 'W') totalProfitLoss += stake * (odds - 1);
+        else if (outcome === 'w') totalProfitLoss += (stake * (odds - 1)) / 2;
+        else if (outcome === 'L') totalProfitLoss -= stake;
     });
 
     const punterDiv = tbody.closest('.punter-section');
@@ -428,66 +345,47 @@ function updateProfitLoss(punterName) {
     profitLossDiv.style.color = totalProfitLoss >= 0 ? 'green' : 'red';
 }
 
-function updateOverallProfit() {
-    const punterData = loadPunterDataFromStorage();
+async function updateOverallProfit() {
+    const { data: bets } = await supabase.from('bets').select('stake, odds, outcome');
+    const { data: history } = await supabase.from('history').select('profitLoss');
     let overallProfit = 0;
 
-    for (const name in punterData) {
-        const bets = punterData[name].bets || [];
-        bets.forEach(bet => {
-            if (bet.outcome === 'W') {
-                overallProfit += bet.stake * (bet.odds - 1);
-            } else if (bet.outcome === 'w') {
-                overallProfit += (bet.stake * (bet.odds - 1)) / 2;
-            } else if (bet.outcome === 'L') {
-                overallProfit -= bet.stake;
-            }
-        });
+    bets.forEach(bet => {
+        if (bet.outcome === 'W') overallProfit += bet.stake * (bet.odds - 1);
+        else if (bet.outcome === 'w') overallProfit += (bet.stake * (bet.odds - 1)) / 2;
+        else if (bet.outcome === 'L') overallProfit -= bet.stake;
+    });
 
-        const history = punterData[name].history || [];
-        history.forEach(record => {
-            overallProfit += record.profitLoss;
-        });
-    }
+    history.forEach(record => overallProfit += record.profitLoss);
 
     const overallProfitDiv = document.getElementById('overall-profit');
     overallProfitDiv.textContent = `Overall Profit/Loss: $${overallProfit.toFixed(2)}`;
     overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
 }
 
-function showRecords() {
-    const punterData = loadPunterDataFromStorage();
-    console.log('Showing records, punterData:', punterData);
+async function showRecords() {
+    const { data: punters } = await supabase.from('punters').select('*');
+    const { data: history } = await supabase.from('history').select('punter_id, timestamp, profitLoss');
     const recordsContent = document.getElementById('records-content');
     let html = '<table><thead><tr><th>Punter</th><th>Most Recent Date</th><th>Total Profit/Loss</th></tr></thead><tbody>';
 
     const groupedRecords = {};
-    for (const name in punterData) {
-        const history = punterData[name].history || [];
-        if (history.length === 0) {
-            console.log(`No history for ${name}`);
-            continue;
-        }
+    for (const punter of punters) {
+        const punterHistory = history.filter(h => h.punter_id === punter.id);
+        if (punterHistory.length === 0) continue;
 
         let totalProfitLoss = 0;
         let mostRecentDate = null;
-
-        history.forEach(record => {
+        punterHistory.forEach(record => {
             totalProfitLoss += record.profitLoss;
             const recordDate = new Date(record.timestamp);
-            if (!mostRecentDate || recordDate > mostRecentDate) {
-                mostRecentDate = recordDate;
-            }
+            if (!mostRecentDate || recordDate > mostRecentDate) mostRecentDate = recordDate;
         });
 
-        groupedRecords[name] = {
-            totalProfitLoss: totalProfitLoss,
-            mostRecentDate: mostRecentDate
-        };
+        groupedRecords[punter.name] = { totalProfitLoss, mostRecentDate };
     }
 
     const sortedPunterNames = Object.keys(groupedRecords).sort();
-
     sortedPunterNames.forEach(name => {
         const { totalProfitLoss, mostRecentDate } = groupedRecords[name];
         const formattedDate = mostRecentDate.toLocaleString();
