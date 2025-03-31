@@ -57,14 +57,49 @@ document.addEventListener('DOMContentLoaded', () => {
         async handleAddPunter() {
             const name = prompt('Enter punter name:');
             if (!name) return;
-            const { error } = await this.supabaseClient.from('punters').insert({ name, closed: false });
-            if (error) {
-                console.error('Add punter error:', error.message, error.code);
-                alert('Failed to add punter: ' + error.message);
+
+            // Check if the punter exists (closed or not)
+            const { data: existingPunter, error: checkError } = await this.supabaseClient
+                .from('punters')
+                .select('id, closed')
+                .eq('name', name)
+                .single();
+
+            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
+                console.error('Error checking punter:', checkError);
+                alert('Error checking punter: ' + checkError.message);
                 return;
             }
-            this.consecutiveLosses[name] = 0;
-            this.renderPunter(name);
+
+            if (existingPunter) {
+                if (!existingPunter.closed) {
+                    alert(`Punter "${name}" is already active. Please close it before starting a new session.`);
+                    return;
+                }
+                // Reopen the existing punter
+                const { error: updateError } = await this.supabaseClient
+                    .from('punters')
+                    .update({ closed: false })
+                    .eq('id', existingPunter.id);
+                if (updateError) {
+                    console.error('Error reopening punter:', updateError);
+                    alert('Failed to reopen punter: ' + updateError.message);
+                    return;
+                }
+                await this.supabaseClient.from('bets').delete().eq('punter_id', existingPunter.id); // Clear old bets
+                this.consecutiveLosses[name] = 0;
+                this.renderPunter(name, []);
+            } else {
+                // Create a new punter
+                const { error: insertError } = await this.supabaseClient.from('punters').insert({ name, closed: false });
+                if (insertError) {
+                    console.error('Add punter error:', insertError.message, insertError.code);
+                    alert('Failed to add punter: ' + insertError.message);
+                    return;
+                }
+                this.consecutiveLosses[name] = 0;
+                this.renderPunter(name);
+            }
             this.updateOverallProfit();
         }
 
