@@ -219,7 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let profit = 0;
 
-                // Calculate profit from active bets
                 if (bets.data && bets.data.length > 0) {
                     profit += bets.data.reduce((sum, bet) => {
                         if (bet.outcome === 'W') return sum + (bet.stake * (bet.odds - 1));
@@ -229,10 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }, 0);
                 }
 
-                // Add profit from history
                 if (history.data && history.data.length > 0) {
                     profit += history.data.reduce((sum, record) => {
-                        const pl = Number(record.profitLoss); // Ensure numeric
+                        const pl = Number(record.profitLoss);
                         return sum + (isNaN(pl) ? 0 : pl);
                     }, 0);
                 }
@@ -287,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             punterDiv.remove();
             delete this.consecutiveLosses[name];
-            await this.updateOverallProfit(); // Ensure this runs after all DB operations
+            await this.updateOverallProfit();
         }
 
         async showRecords() {
@@ -361,7 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reader.onload = async (e) => {
                 const data = JSON.parse(e.target.result);
                 await Promise.all([
-                    this.supabaseClient.from('pun BRIEF ters').delete().neq('id', '0'),
+                    this.supabaseClient.from('punters').delete().neq('id', '0'),
                     this.supabaseClient.from('bets').delete().neq('id', '0'),
                     this.supabaseClient.from('history').delete().neq('id', '0')
                 ]);
@@ -428,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = document.createElement('tr');
             row.innerHTML = this.createEmptyBetRow(name).replace('value="10"', `value="${lastStake}"`);
             tbody.appendChild(row);
-            row，.querySelector('.outcome').addEventListener('change', (e) => this.updateBet(name, e.target.closest('tr')));
+            row.querySelector('.outcome').addEventListener('change', (e) => this.updateBet(name, e.target.closest('tr')));
             row.querySelector('.delete-bet').addEventListener('click', () => this.deleteBet(name, Array.from(tbody.children).indexOf(row)));
         }
 
