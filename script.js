@@ -15,6 +15,7 @@ const supabaseClient = createClient(
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOMContentLoaded event fired');
 
+    // Get all DOM elements
     const addPunterButton = document.getElementById('add-punter');
     const viewRecordsButton = document.getElementById('view-records');
     const exportButton = document.getElementById('export-data');
@@ -24,7 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const changeViewButton = document.getElementById('change-view');
     const closeModal = document.getElementById('close-modal');
     const recordsModal = document.getElementById('records-modal');
+    const checkDateProfitButton = document.getElementById('check-date-profit');
 
+    // Log elements for debugging
     console.log('Add Punter Button:', addPunterButton);
     console.log('View Records Button:', viewRecordsButton);
     console.log('Export Data Button:', exportButton);
@@ -34,14 +37,18 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Change View Button:', changeViewButton);
     console.log('Close Modal Button:', closeModal);
     console.log('Records Modal:', recordsModal);
+    console.log('Check Date Profit Button:', checkDateProfitButton);
 
+    // Load initial data
     loadPunterData();
     updateOverallProfit();
 
+    // Set initial layout
     const puntersContainer = document.getElementById('punters-container');
     puntersContainer.classList.add('two-column');
     let currentLayout = 'two-column';
 
+    // Add Punter button
     if (addPunterButton) {
         addPunterButton.addEventListener('click', async () => {
             console.log('Add Punter button clicked');
@@ -56,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Add Punter button not found');
     }
 
+    // View Records button
     if (viewRecordsButton) {
         viewRecordsButton.addEventListener('click', () => {
             console.log('View Records button clicked');
@@ -65,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('View Records button not found');
     }
 
+    // Close Modal button
     if (closeModal) {
         closeModal.addEventListener('click', () => {
             console.log('Close Modal button clicked');
@@ -74,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Close Modal button not found');
     }
 
+    // Modal click outside to close
     if (recordsModal) {
         window.addEventListener('click', (event) => {
             if (event.target === recordsModal) {
@@ -85,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Records Modal not found');
     }
 
+    // Export Data button
     if (exportButton) {
         exportButton.addEventListener('click', async () => {
             console.log('Export Data button clicked');
@@ -105,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Export Data button not found');
     }
 
+    // Import Data button
     if (importButton && importInput) {
         importButton.addEventListener('click', () => {
             console.log('Import Data button clicked');
@@ -137,6 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Import Button or Input not found');
     }
 
+    // Clear Data button
     if (clearDataButton) {
         clearDataButton.addEventListener('click', async () => {
             console.log('Clear Data button clicked');
@@ -152,6 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Clear Data button not found');
     }
 
+    // Change View button
     if (changeViewButton) {
         changeViewButton.addEventListener('click', () => {
             console.log('Change View button clicked');
@@ -173,6 +187,30 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.error('Change View button not found');
     }
+
+    // Check Profit/Loss by Date button
+    if (checkDateProfitButton) {
+        checkDateProfitButton.addEventListener('click', async () => {
+            console.log('Check Date Profit button clicked');
+            const date = document.getElementById('date-picker').value;
+            if (!date) return alert('Please select a date');
+            const startOfDay = `${date}T00:00:00Z`;
+            const endOfDay = `${date}T23:59:59Z`;
+            const { data, error } = await supabaseClient
+                .from('history')
+                .select('profitLoss')
+                .gte('timestamp', startOfDay)
+                .lte('timestamp', endOfDay);
+            if (error) {
+                console.error('Error fetching profit/loss by date:', error);
+                return;
+            }
+            const total = data.reduce((sum, record) => sum + record.profitLoss, 0);
+            document.getElementById('date-profit-result').innerHTML = `Profit/Loss on ${date}: $${total.toFixed(2)}`;
+        });
+    } else {
+        console.error('Check Date Profit button not found');
+    }
 });
 
 async function loadPunterData() {
@@ -192,7 +230,10 @@ async function loadPunterData() {
 
 async function savePunterData(name, bets) {
     const { data: punter, error: punterError } = await supabaseClient.from('punters').select('id').eq('name', name).single();
-    if (punterError) console.error('Error fetching punter:', punterError);
+    if (punterError) {
+        console.error('Error fetching punter:', punterError);
+        return;
+    }
     const punterId = punter.id;
     await supabaseClient.from('bets').delete().eq('punter_id', punterId);
     if (bets.length > 0) {
@@ -203,14 +244,18 @@ async function savePunterData(name, bets) {
 }
 
 async function savePunterHistory(name, profitLoss) {
-    const { data: punter } = await supabaseClient.from('punters').select('id').eq('name', name).single();
+    const { data: punter, error } = await supabaseClient.from('punters').select('id').eq('name', name).single();
+    if (error) {
+        console.error('Error fetching punter for history:', error);
+        return;
+    }
     const punterId = punter.id;
-    const { error } = await supabaseClient.from('history').insert({
+    const { error: insertError } = await supabaseClient.from('history').insert({
         punter_id: punterId,
         timestamp: new Date().toISOString(),
         profitLoss
     });
-    if (error) console.error('Error saving history:', error);
+    if (insertError) console.error('Error saving history:', insertError);
     await supabaseClient.from('bets').delete().eq('punter_id', punterId);
 }
 
@@ -396,7 +441,8 @@ function updateProfitLoss(punterName) {
     profitLossDiv.textContent = `Profit/Loss: $${totalProfitLoss.toFixed(2)}`;
     profitLossDiv.style.color = totalProfitLoss >= 0 ? 'green' : 'red';
 
-    const maxProfit = 1000;
+    // Update progress bar
+    const maxProfit = 1000; // Adjust this value as needed
     const progress = Math.min(Math.abs(totalProfitLoss) / maxProfit * 100, 100);
     const progressBar = punterDiv.querySelector('.progress-bar');
     progressBar.style.width = `${progress}%`;
@@ -404,10 +450,12 @@ function updateProfitLoss(punterName) {
 }
 
 async function updateOverallProfit() {
-    const { data: bets } = await supabaseClient.from('bets').select('stake, odds, outcome');
-    const { data: history } = await supabaseClient.from('history').select('profitLoss');
-    let overallProfit = 0;
+    const { data: bets, error: betsError } = await supabaseClient.from('bets').select('stake, odds, outcome');
+    if (betsError) console.error('Error fetching bets for overall profit:', betsError);
+    const { data: history, error: historyError } = await supabaseClient.from('history').select('profitLoss');
+    if (historyError) console.error('Error fetching history for overall profit:', historyError);
 
+    let overallProfit = 0;
     if (bets) {
         bets.forEach(bet => {
             if (bet.outcome === 'W') overallProfit += bet.stake * (bet.odds - 1);
@@ -415,7 +463,6 @@ async function updateOverallProfit() {
             else if (bet.outcome === 'L') overallProfit -= bet.stake;
         });
     }
-
     if (history) {
         history.forEach(record => overallProfit += record.profitLoss);
     }
@@ -426,20 +473,13 @@ async function updateOverallProfit() {
 }
 
 async function showRecords() {
-    const { data: punters } = await supabaseClient.from('punters').select('*');
-    const { data: history } = await supabaseClient.from('history').select('punter_id, timestamp, profitLoss');
+    const { data: punters, error: puntersError } = await supabaseClient.from('punters').select('*');
+    if (puntersError) console.error('Error fetching punters for records:', puntersError);
+    const { data: history, error: historyError } = await supabaseClient.from('history').select('punter_id, timestamp, profitLoss');
+    if (historyError) console.error('Error fetching history for records:', historyError);
+
     const recordsContent = document.getElementById('records-content');
-    let html = `
-        <table>
-            <thead>
-                <tr>
-                    <th>Punter</th>
-                    <th>Most Recent Date</th>
-                    <th>Total Profit/Loss</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
+    let html = '<table><thead><tr><th>Punter</th><th>Most Recent Date</th><th>Total Profit/Loss</th></tr></thead><tbody>';
 
     const groupedRecords = {};
     if (punters && history) {
@@ -451,4 +491,28 @@ async function showRecords() {
             let mostRecentDate = null;
             punterHistory.forEach(record => {
                 totalProfitLoss += record.profitLoss;
-                constSorry about that, something didn't go as planned. Please try again, and if you're still seeing this message, go ahead and restart the app.
+                const recordDate = new Date(record.timestamp);
+                if (!mostRecentDate || recordDate > mostRecentDate) mostRecentDate = recordDate;
+            });
+
+            groupedRecords[punter.name] = { totalProfitLoss, mostRecentDate };
+        }
+    }
+
+    const sortedPunterNames = Object.keys(groupedRecords).sort();
+    sortedPunterNames.forEach(name => {
+        const { totalProfitLoss, mostRecentDate } = groupedRecords[name];
+        const formattedDate = mostRecentDate.toLocaleString();
+        html += `
+            <tr>
+                <td>${name}</td>
+                <td>${formattedDate}</td>
+                <td style="color: ${totalProfitLoss >= 0 ? 'green' : 'red'}">$${totalProfitLoss.toFixed(2)}</td>
+            </tr>
+        `;
+    });
+
+    html += '</tbody></table>';
+    recordsContent.innerHTML = html;
+    document.getElementById('records-modal').style.display = 'block';
+}
