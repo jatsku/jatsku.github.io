@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const [bets, history] = await Promise.all([
                     this.supabaseClient.from('bets').select('stake, odds, outcome'),
-                    this.supabaseClient.from('history').select('profitLoss')
+                    this.supabaseClient.from('history').select('profitloss')
                 ]);
 
                 console.log('Bets data:', bets.data);
@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (history.data && history.data.length > 0) {
                     profit += history.data.reduce((sum, record) => {
-                        const pl = Number(record.profitLoss);
+                        const pl = Number(record.profitloss);
                         return sum + (isNaN(pl) ? 0 : pl);
                     }, 0);
                 }
@@ -252,6 +252,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
             const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
 
+            console.log(`Attempting to close punter: ${name}, Profit/Loss: ${profitLoss}`);
+
             const { data: punter, error: punterError } = await this.supabaseClient
                 .from('punters')
                 .select('id')
@@ -260,27 +262,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (punterError) {
                 console.error('Error fetching punter:', punterError);
+                alert('Failed to fetch punter: ' + punterError.message);
                 return;
             }
 
             if (punter) {
-                const { error: insertError } = await this.supabaseClient
+                console.log('Punter ID:', punter.id);
+                const insertPayload = {
+                    punter_id: punter.id,
+                    timestamp: new Date().toISOString(),
+                    profitloss: profitLoss
+                };
+                console.log('Inserting into history:', insertPayload);
+
+                const { data: historyData, error: insertError } = await this.supabaseClient
                     .from('history')
-                    .insert({
-                        punter_id: punter.id,
-                        timestamp: new Date().toISOString(),
-                        profitLoss: profitLoss
-                    });
+                    .insert(insertPayload)
+                    .select();
 
                 if (insertError) {
-                    console.error('Error inserting history:', insertError);
+                    console.error('Error inserting history:', insertError, 'Full error:', JSON.stringify(insertError));
+                    alert('Failed to save history: ' + insertError.message);
                     return;
                 }
 
-                await Promise.all([
+                console.log('Successfully inserted into history:', historyData);
+
+                const [betsDelete, punterDelete] = await Promise.all([
                     this.supabaseClient.from('bets').delete().eq('punter_id', punter.id),
                     this.supabaseClient.from('punters').delete().eq('id', punter.id)
                 ]);
+
+                if (betsDelete.error) console.error('Error deleting bets:', betsDelete.error);
+                if (punterDelete.error) console.error('Error deleting punter:', punterDelete.error);
+            } else {
+                console.error('No punter found with name:', name);
             }
 
             punterDiv.remove();
@@ -307,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!grouped[name]) {
                     grouped[name] = { profitLoss: 0, latest: null };
                 }
-                grouped[name].profitLoss += record.profitLoss;
+                grouped[name].profitLoss += record.profitloss;
                 const date = new Date(record.timestamp);
                 if (!grouped[name].latest || date > grouped[name].latest) {
                     grouped[name].latest = date;
@@ -401,14 +417,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const end = `${date}T23:59:59Z`;
             const { data, error } = await this.supabaseClient
                 .from('history')
-                .select('profitLoss')
+                .select('profitloss')
                 .gte('timestamp', start)
                 .lte('timestamp', end);
             if (error) {
                 console.error('Error checking date profit:', error);
                 return;
             }
-            const total = data.reduce((sum, record) => sum + record.profitLoss, 0);
+            const total = data.reduce((sum, record) => sum + record.profitloss, 0);
             document.getElementById('date-profit-result').innerHTML = `Profit/Loss on ${date}: $${total.toFixed(2)}`;
         }
 
