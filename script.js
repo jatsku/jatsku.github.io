@@ -1,316 +1,143 @@
 // Initialize Supabase client
-console.log('Checking if supabase global is available:', typeof supabase);
-if (typeof supabase === 'undefined') {
-    console.error('Supabase client not loaded! Ensure the script tag is correct.');
-} else {
-    console.log('Supabase client loaded successfully');
-}
-
-const { createClient } = supabase;
-const supabaseClient = createClient(
+const supabaseClient = supabase.createClient(
     'https://ozaolkdkxgwqoyzmgjcd.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96YW9sa2RreGd3cW95em1namNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0MzI4NzcsImV4cCI6MjA1OTAwODg3N30.kX_b_eEvKtljidsJf0xZkhx9OMMabdyg2BO0xVswkls'
 );
 
-// Object to track consecutive losses for each punter
-const consecutiveLosses = {};
+class BettingApp {
+    constructor() {
+        this.consecutiveLosses = {};
+        this.initializeEventListeners();
+        this.loadInitialData();
+    }
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOMContentLoaded event fired');
+    async initializeEventListeners() {
+        document.addEventListener('DOMContentLoaded', () => {
+            // Core buttons
+            this.setupButton('#add-punter', this.handleAddPunter.bind(this));
+            this.setupButton('#view-records', this.showRecords.bind(this));
+            this.setupButton('#export-data', this.exportData.bind(this));
+            this.setupButton('#clear-data', this.clearData.bind(this));
+            this.setupButton('#change-view', this.toggleLayout.bind(this));
+            this.setupButton('#close-modal', () => this.toggleModal(false));
+            this.setupButton('#check-date-profit', this.checkDateProfit.bind(this));
 
-    // Get all DOM elements
-    const addPunterButton = document.getElementById('add-punter');
-    const viewRecordsButton = document.getElementById('view-records');
-    const exportButton = document.getElementById('export-data');
-    const importButton = document.getElementById('import-button');
-    const importInput = document.getElementById('import-data');
-    const clearDataButton = document.getElementById('clear-data');
-    const changeViewButton = document.getElementById('change-view');
-    const closeModal = document.getElementById('close-modal');
-    const recordsModal = document.getElementById('records-modal');
-    const checkDateProfitButton = document.getElementById('check-date-profit');
-
-    // Log elements for debugging
-    console.log('Add Punter Button:', addPunterButton);
-    console.log('View Records Button:', viewRecordsButton);
-    console.log('Export Data Button:', exportButton);
-    console.log('Import Button:', importButton);
-    console.log('Import Input:', importInput);
-    console.log('Clear Data Button:', clearDataButton);
-    console.log('Change View Button:', changeViewButton);
-    console.log('Close Modal Button:', closeModal);
-    console.log('Records Modal:', recordsModal);
-    console.log('Check Date Profit Button:', checkDateProfitButton);
-
-    // Load initial data
-    loadPunterData();
-    updateOverallProfit();
-
-    // Set initial layout
-    const puntersContainer = document.getElementById('punters-container');
-    puntersContainer.classList.add('two-column');
-    let currentLayout = 'two-column';
-
-    // Add Punter button
-    if (addPunterButton) {
-        addPunterButton.addEventListener('click', async () => {
-            console.log('Add Punter button clicked');
-            const name = prompt('Enter punter name:');
-            if (name) {
-                const { error } = await supabaseClient.from('punters').insert({ name });
-                if (error) console.error('Error adding punter:', error);
-                else {
-                    consecutiveLosses[name] = 0; // Initialize consecutive losses for new punter
-                    addPunter(name);
-                    updateOverallProfit();
-                }
+            // Import handling
+            const importInput = document.getElementById('import-data');
+            this.setupButton('#import-button', () => importInput.click());
+            if (importInput) {
+                importInput.addEventListener('change', this.importData.bind(this));
             }
+
+            // Modal outside click
+            const modal = document.getElementById('records-modal');
+            window.addEventListener('click', (e) => {
+                if (e.target === modal) this.toggleModal(false);
+            });
         });
-    } else {
-        console.error('Add Punter button not found');
     }
 
-    // View Records button
-    if (viewRecordsButton) {
-        viewRecordsButton.addEventListener('click', () => {
-            console.log('View Records button clicked');
-            showRecords();
-        });
-    } else {
-        console.error('View Records button not found');
-    }
-
-    // Close Modal button
-    if (closeModal) {
-        closeModal.addEventListener('click', () => {
-            console.log('Close Modal button clicked');
-            recordsModal.style.display = 'none';
-        });
-    } else {
-        console.error('Close Modal button not found');
-    }
-
-    // Modal click outside to close
-    if (recordsModal) {
-        window.addEventListener('click', (event) => {
-            if (event.target === recordsModal) {
-                console.log('Clicked outside modal to close');
-                recordsModal.style.display = 'none';
-            }
-        });
-    } else {
-        console.error('Records Modal not found');
-    }
-
-    // Export Data button
-    if (exportButton) {
-        exportButton.addEventListener('click', async () => {
-            console.log('Export Data button clicked');
-            const { data: punters } = await supabaseClient.from('punters').select('*');
-            const { data: bets } = await supabaseClient.from('bets').select('*');
-            const { data: history } = await supabaseClient.from('history').select('*');
-            const exportData = { punters, bets, history };
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'betting-assistant-data.json';
-            a.click();
-            URL.revokeObjectURL(url);
-        });
-    } else {
-        console.error('Export Data button not found');
-    }
-
-    // Import Data button
-    if (importButton && importInput) {
-        importButton.addEventListener('click', () => {
-            console.log('Import Data button clicked');
-            importInput.click();
-        });
-        importInput.addEventListener('change', async (event) => {
-            console.log('Import Input changed');
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    try {
-                        const importedData = JSON.parse(e.target.result);
-                        await supabaseClient.from('punters').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                        await supabaseClient.from('bets').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                        await supabaseClient.from('history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                        await supabaseClient.from('punters').insert(importedData.punters);
-                        await supabaseClient.from('bets').insert(importedData.bets);
-                        await supabaseClient.from('history').insert(importedData.history);
-                        alert('Data imported successfully! Reloading page...');
-                        location.reload();
-                    } catch (err) {
-                        alert('Error importing data: ' + err.message);
-                    }
-                };
-                reader.readAsText(file);
-            }
-        });
-    } else {
-        console.error('Import Button or Input not found');
-    }
-
-    // Clear Data button
-    if (clearDataButton) {
-        clearDataButton.addEventListener('click', async () => {
-            console.log('Clear Data button clicked');
-            if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
-                await supabaseClient.from('bets').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                await supabaseClient.from('history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                await supabaseClient.from('punters').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                alert('All data cleared! Reloading page...');
-                window.location.reload(true);
-            }
-        });
-    } else {
-        console.error('Clear Data button not found');
-    }
-
-    // Change View button
-    if (changeViewButton) {
-        changeViewButton.addEventListener('click', () => {
-            console.log('Change View button clicked');
-            puntersContainer.classList.remove('two-column', 'single-column', 'three-column');
-            if (currentLayout === 'two-column') {
-                puntersContainer.classList.add('single-column');
-                currentLayout = 'single-column';
-                changeViewButton.textContent = 'Change View (Single)';
-            } else if (currentLayout === 'single-column') {
-                puntersContainer.classList.add('three-column');
-                currentLayout = 'three-column';
-                changeViewButton.textContent = 'Change View (3-Column)';
-            } else {
-                puntersContainer.classList.add('two-column');
-                currentLayout = 'two-column';
-                changeViewButton.textContent = 'Change View (2-Column)';
-            }
-        });
-    } else {
-        console.error('Change View button not found');
-    }
-
-    // Check Profit/Loss by Date button
-    if (checkDateProfitButton) {
-        checkDateProfitButton.addEventListener('click', async () => {
-            console.log('Check Date Profit button clicked');
-            const date = document.getElementById('date-picker').value;
-            if (!date) return alert('Please select a date');
-            const startOfDay = `${date}T00:00:00Z`;
-            const endOfDay = `${date}T23:59:59Z`;
-            const { data, error } = await supabaseClient
-                .from('history')
-                .select('profitLoss')
-                .gte('timestamp', startOfDay)
-                .lte('timestamp', endOfDay);
-            if (error) {
-                console.error('Error fetching profit/loss by date:', error);
-                return;
-            }
-            const total = data ? data.reduce((sum, record) => sum + record.profitLoss, 0) : 0;
-            document.getElementById('date-profit-result').innerHTML = `Profit/Loss on ${date}: $${total.toFixed(2)}`;
-        });
-    } else {
-        console.error('Check Date Profit button not found');
-    }
-});
-
-async function loadPunterData() {
-    console.log('Loading punter data...');
-    const { data: punters, error } = await supabaseClient.from('punters').select('*');
-    if (error) {
-        console.error('Error loading punters:', error);
-        return;
-    }
-    console.log('Punters loaded:', punters);
-    for (const punter of punters) {
-        const { data: bets, error: betsError } = await supabaseClient.from('bets').select('*').eq('punter_id', punter.id);
-        if (betsError) console.error('Error loading bets for punter:', punter.name, betsError);
-        else {
-            consecutiveLosses[punter.name] = calculateConsecutiveLosses(bets || []);
-            addPunter(punter.name, bets || []);
+    setupButton(selector, handler) {
+        const button = document.querySelector(selector);
+        if (button) {
+            button.addEventListener('click', handler);
+        } else {
+            console.error(`${selector} not found`);
         }
     }
-}
 
-async function savePunterData(name, bets) {
-    const { data: punter, error: punterError } = await supabaseClient.from('punters').select('id').eq('name', name).single();
-    if (punterError) {
-        console.error('Error fetching punter:', punterError);
-        return;
+    async loadInitialData() {
+        try {
+            await this.loadPunters();
+            this.updateOverallProfit();
+        } catch (error) {
+            console.error('Failed to load initial data:', error);
+        }
     }
-    const punterId = punter.id;
-    await supabaseClient.from('bets').delete().eq('punter_id', punterId);
-    if (bets.length > 0) {
-        const betData = bets.map(bet => ({ ...bet, punter_id: punterId }));
-        const { error } = await supabaseClient.from('bets').insert(betData);
-        if (error) console.error('Error saving bets:', error);
+
+    async loadPunters() {
+        const { data: punters, error } = await supabaseClient
+            .from('punters')
+            .select('*');
+        
+        if (error) throw new Error(`Failed to load punters: ${error.message}`);
+        
+        for (const punter of punters) {
+            const bets = await this.fetchBets(punter.id);
+            this.consecutiveLosses[punter.name] = this.calculateConsecutiveLosses(bets);
+            this.renderPunter(punter.name, bets);
+        }
     }
-}
 
-async function savePunterHistory(name, profitLoss) {
-    console.log(`Saving history for punter: ${name}, Profit/Loss: ${profitLoss}`);
-    const { data: punter, error } = await supabaseClient.from('punters').select('id').eq('name', name).single();
-    if (error) {
-        console.error('Error fetching punter for history:', error);
-        return;
+    async fetchBets(punterId) {
+        const { data, error } = await supabaseClient
+            .from('bets')
+            .select('*')
+            .eq('punter_id', punterId);
+        
+        if (error) console.error(`Error fetching bets: ${error.message}`);
+        return data || [];
     }
-    const punterId = punter.id;
-    const { error: insertError } = await supabaseClient.from('history').insert({
-        punter_id: punterId,
-        timestamp: new Date().toISOString(),
-        profitLoss
-    });
-    if (insertError) {
-        console.error('Error saving history:', insertError);
-    } else {
-        console.log(`Successfully saved history for ${name}: Profit/Loss = ${profitLoss}`);
+
+    async handleAddPunter() {
+        const name = prompt('Enter punter name:');
+        if (!name) return;
+
+        const { error } = await supabaseClient
+            .from('punters')
+            .insert({ name });
+        
+        if (error) {
+            console.error('Error adding punter:', error);
+            return;
+        }
+
+        this.consecutiveLosses[name] = 0;
+        this.renderPunter(name);
+        this.updateOverallProfit();
     }
-    await supabaseClient.from('bets').delete().eq('punter_id', punterId);
-    await supabaseClient.from('punters').delete().eq('id', punterId); // Remove punter after closing
-    delete consecutiveLosses[name]; // Clear consecutive losses tracking
-}
 
-function addPunter(name, existingBets = []) {
-    const container = document.getElementById('punters-container');
-    const punterDiv = document.createElement('div');
-    punterDiv.classList.add('punter-section');
-    punterDiv.setAttribute('data-punter', name);
+    renderPunter(name, bets = []) {
+        const container = document.getElementById('punters-container');
+        const punterDiv = document.createElement('div');
+        punterDiv.className = 'punter-section';
+        punterDiv.dataset.punter = name;
 
-    punterDiv.innerHTML = `
-        <div style="display: flex; align-items: center;">
-            <h2 style="margin: 0;">${name}</h2>
-            <button class="close-punter">Close</button>
-        </div>
-        <div class="profit-loss">Profit/Loss: $0.00</div>
-        <div class="progress-container"><div class="progress-bar"></div></div>
-        <table class="punter-table">
-            <thead>
-                <tr>
-                    <th>Stake</th>
-                    <th>Game</th>
-                    <th>Odds</th>
-                    <th>Outcome</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="bets-${name}">
-            </tbody>
-        </table>
-        <button class="next-bet" data-punter="${name}">Next Bet</button>
-    `;
-    container.appendChild(punterDiv);
+        punterDiv.innerHTML = `
+            <div class="punter-header">
+                <h2>${name}</h2>
+                <button class="close-punter">Close</button>
+            </div>
+            <div class="profit-loss">Profit/Loss: $0.00</div>
+            <div class="progress-container"><div class="progress-bar"></div></div>
+            <table class="punter-table">
+                <thead>
+                    <tr>
+                        <th>Stake</th><th>Game</th><th>Odds</th><th>Outcome</th><th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="bets-${name}">${this.renderBets(name, bets)}</tbody>
+            </table>
+            <button class="next-bet" data-punter="${name}">Next Bet</button>
+        `;
 
-    const tbody = punterDiv.querySelector(`#bets-${name}`);
-    if (existingBets.length > 0) {
-        existingBets.forEach((bet, index) => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
+        container.appendChild(punterDiv);
+        
+        // Event listeners
+        punterDiv.querySelector('.close-punter')
+            .addEventListener('click', () => this.closePunter(name));
+        punterDiv.querySelector('.next-bet')
+            .addEventListener('click', () => this.addNextBet(name));
+        
+        this.updateProfitLoss(name);
+        this.updateNextBetButton(name);
+    }
+
+    renderBets(name, bets) {
+        if (!bets.length) return this.createEmptyBetRow(name);
+        
+        return bets.map((bet, index) => `
+            <tr class="${bet.outcome === 'W' || bet.outcome === 'w' ? 'win' : bet.outcome === 'L' ? 'loss' : ''}">
                 <td><input type="number" class="stake" value="${bet.stake}" min="1"></td>
                 <td><input type="text" class="game" value="${bet.game || ''}"></td>
                 <td><input type="number" class="odds" value="${bet.odds || ''}" step="0.01" min="1"></td>
@@ -323,278 +150,347 @@ function addPunter(name, existingBets = []) {
                         <option value="L" ${bet.outcome === 'L' ? 'selected' : ''}>L (Loss)</option>
                     </select>
                 </td>
-                <td><button class="delete-bet">Delete</button></td>
-            `;
-            if (bet.outcome === 'W' || bet.outcome === 'w') row.classList.add('win');
-            if (bet.outcome === 'L') row.classList.add('loss');
-            tbody.appendChild(row);
-            row.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, name));
-            row.querySelector('.delete-bet').addEventListener('click', () => deleteBet(name, index));
-        });
-    } else {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td><input type="number" class="stake" value="10" min="1"></td>
-            <td><input type="text" class="game" placeholder="Enter game"></td>
-            <td><input type="number" class="odds" placeholder="Enter odds" step="0.01" min="1"></td>
-            <td>
-                <select class="outcome">
-                    <option value="">--</option>
-                    <option value="W">W (Big Win)</option>
-                    <option value="w">w (Small Win)</option>
-                    <option value="D">D (Draw)</option>
-                    <option value="L">L (Loss)</option>
-                </select>
-            </td>
-            <td><button class="delete-bet">Delete</button></td>
+                <td><button class="delete-bet" data-index="${index}">Delete</button></td>
+            </tr>
+        `).join('');
+    }
+
+    createEmptyBetRow(name) {
+        return `
+            <tr>
+                <td><input type="number" class="stake" value="10" min="1"></td>
+                <td><input type="text" class="game" placeholder="Enter game"></td>
+                <td><input type="number" class="odds" placeholder="Enter odds" step="0.01" min="1"></td>
+                <td>
+                    <select class="outcome">
+                        <option value="">--</option>
+                        <option value="W">W (Big Win)</option>
+                        <option value="w">w (Small Win)</option>
+                        <option value="D">D (Draw)</option>
+                        <option value="L">L (Loss)</option>
+                    </select>
+                </td>
+                <td><button class="delete-bet" data-index="0">Delete</button></td>
+            </tr>
         `;
+    }
+
+    async updateBet(name, row) {
+        const bets = this.getBetsFromTable(name);
+        await this.savePunterData(name, bets);
+        this.consecutiveLosses[name] = this.calculateConsecutiveLosses(bets);
+        this.updateNextBetButton(name);
+        this.updateProfitLoss(name);
+        this.updateOverallProfit();
+    }
+
+    async savePunterData(name, bets) {
+        const { data: punter } = await supabaseClient
+            .from('punters')
+            .select('id')
+            .eq('name', name)
+            .single();
+
+        if (!punter) return;
+
+        await supabaseClient.from('bets').delete().eq('punter_id', punter.id);
+        if (bets.length) {
+            const betData = bets.map(bet => ({ ...bet, punter_id: punter.id }));
+            await supabaseClient.from('bets').insert(betData);
+        }
+    }
+
+    calculateConsecutiveLosses(bets) {
+        return bets.reduceRight((count, bet) => 
+            bet.outcome === 'L' ? count + 1 : 
+            (bet.outcome === 'W' || bet.outcome === 'w' || bet.outcome === 'D') ? 0 : count, 0);
+    }
+
+    updateNextBetButton(name) {
+        const button = document.querySelector(`.next-bet[data-punter="${name}"]`);
+        const disabled = this.consecutiveLosses[name] >= 3;
+        button.disabled = disabled;
+        button.style.backgroundColor = disabled ? '#ccc' : '';
+        button.style.cursor = disabled ? 'not-allowed' : '';
+        if (disabled) {
+            alert(`${name} has 3 consecutive losses. Please close or view records.`);
+        }
+    }
+
+    getBetsFromTable(name) {
+        return Array.from(document.querySelectorAll(`#bets-${name} tr`)).map(row => ({
+            stake: parseFloat(row.querySelector('.stake').value) || 0,
+            game: row.querySelector('.game').value,
+            odds: parseFloat(row.querySelector('.odds').value) || 0,
+            outcome: row.querySelector('.outcome').value
+        }));
+    }
+
+    async updateProfitLoss(name) {
+        const bets = this.getBetsFromTable(name);
+        const profitLoss = bets.reduce((total, bet) => {
+            if (bet.outcome === 'W') return total + (bet.stake * (bet.odds - 1));
+            if (bet.outcome === 'w') return total + (bet.stake * (bet.odds - 1)) / 2;
+            if (bet.outcome === 'L') return total - bet.stake;
+            return total;
+        }, 0);
+
+        const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
+        const profitLossDiv = punterDiv.querySelector('.profit-loss');
+        profitLossDiv.textContent = `Profit/Loss: $${profitLoss.toFixed(2)}`;
+        profitLossDiv.style.color = profitLoss >= 0 ? 'green' : 'red';
+
+        const progressBar = punterDiv.querySelector('.progress-bar');
+        const progress = Math.min(Math.abs(profitLoss) / 1000 * 100, 100);
+        progressBar.style.width = `${progress}%`;
+        progressBar.style.backgroundColor = profitLoss >= 0 ? '#4CAF50' : '#f44336';
+    }
+
+    async updateOverallProfit() {
+        try {
+            const [bets, history] = await Promise.all([
+                supabaseClient.from('bets').select('stake, odds, outcome'),
+                supabaseClient.from('history').select('profitLoss')
+            ]);
+
+            let profit = 0;
+
+            // Active bets
+            if (bets.data) {
+                profit += bets.data.reduce((sum, bet) => {
+                    if (bet.outcome === 'W') return sum + (bet.stake * (bet.odds - 1));
+                    if (bet.outcome === 'w') return sum + (bet.stake * (bet.odds - 1)) / 2;
+                    if (bet.outcome === 'L') return sum - bet.stake;
+                    return sum;
+                }, 0);
+            }
+
+            // Historical data
+            if (history.data) {
+                profit += history.data.reduce((sum, record) => sum + record.profitLoss, 0);
+            }
+
+            const overallProfitDiv = document.getElementById('overall-profit');
+            overallProfitDiv.textContent = `Overall Profit/Loss: $${profit.toFixed(2)}`;
+            overallProfitDiv.style.color = profit >= 0 ? 'green' : 'red';
+        } catch (error) {
+            console.error('Error updating overall profit:', error);
+        }
+    }
+
+    async closePunter(name) {
+        if (!confirm(`Close ${name}'s record?`)) return;
+
+        const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
+        const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
+
+        const { data: punter } = await supabaseClient
+            .from('punters')
+            .select('id')
+            .eq('name', name)
+            .single();
+
+        if (punter) {
+            await supabaseClient.from('history').insert({
+                punter_id: punter.id,
+                timestamp: new Date().toISOString(),
+                profitLoss
+            });
+            await supabaseClient.from('bets').delete().eq('punter_id', punter.id);
+            await supabaseClient.from('punters').delete().eq('id', punter.id);
+        }
+
+        punterDiv.remove();
+        delete this.consecutiveLosses[name];
+        this.updateOverallProfit();
+    }
+
+    async showRecords() {
+        const { data: history, error } = await supabaseClient
+            .from('history')
+            .select('*, punters(name)')
+            .order('timestamp', { ascending: false });
+
+        if (error) {
+            console.error('Error fetching records:', error);
+            return;
+        }
+
+        const grouped = this.groupHistory(history);
+        const html = this.generateRecordsTable(grouped);
+        document.getElementById('records-content').innerHTML = html;
+        this.toggleModal(true);
+    }
+
+    groupHistory(history) {
+        const grouped = {};
+        history.forEach(record => {
+            const name = record.punters?.name || 'Unknown';
+            if (!grouped[name]) {
+                grouped[name] = { profitLoss: 0, latest: null };
+            }
+            grouped[name].profitLoss += record.profitLoss;
+            const date = new Date(record.timestamp);
+            if (!grouped[name].latest || date > grouped[name].latest) {
+                grouped[name].latest = date;
+            }
+        });
+        return grouped;
+    }
+
+    generateRecordsTable(grouped) {
+        let html = '<table><thead><tr><th>Punter</th><th>Latest</th><th>Total</th></tr></thead><tbody>';
+        if (!Object.keys(grouped).length) {
+            html += '<tr><td colspan="3">No records</td></tr>';
+        } else {
+            Object.entries(grouped)
+                .sort()
+                .forEach(([name, { profitLoss, latest }]) => {
+                    html += `
+                        <tr>
+                            <td>${name}</td>
+                            <td>${latest.toLocaleString()}</td>
+                            <td style="color: ${profitLoss >= 0 ? 'green' : 'red'}">$${profitLoss.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+        }
+        return html + '</tbody></table>';
+    }
+
+    async exportData() {
+        const [punters, bets, history] = await Promise.all([
+            supabaseClient.from('punters').select('*'),
+            supabaseClient.from('bets').select('*'),
+            supabaseClient.from('history').select('*')
+        ]);
+
+        const data = {
+            punters: punters.data,
+            bets: bets.data,
+            history: history.data
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'betting-data.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    async importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                await Promise.all([
+                    supabaseClient.from('punters').delete().neq('id', '0'),
+                    supabaseClient.from('bets').delete().neq('id', '0'),
+                    supabaseClient.from('history').delete().neq('id', '0')
+                ]);
+                await Promise.all([
+                    supabaseClient.from('punters').insert(data.punters),
+                    supabaseClient.from('bets').insert(data.bets),
+                    supabaseClient.from('history').insert(data.history)
+                ]);
+                location.reload();
+            } catch (error) {
+                alert(`Import failed: ${error.message}`);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    async clearData() {
+        if (!confirm('Clear all data? This cannot be undone.')) return;
+
+        await Promise.all([
+            supabaseClient.from('punters').delete().neq('id', '0'),
+            supabaseClient.from('bets').delete().neq('id', '0'),
+            supabaseClient.from('history').delete().neq('id', '0')
+        ]);
+        location.reload();
+    }
+
+    toggleLayout() {
+        const container = document.getElementById('punters-container');
+        const button = document.getElementById('change-view');
+        const layouts = ['two-column', 'single-column', 'three-column'];
+        const current = layouts.find(l => container.classList.contains(l));
+        const nextIndex = (layouts.indexOf(current) + 1) % layouts.length;
+        
+        container.classList.remove(...layouts);
+        container.classList.add(layouts[nextIndex]);
+        button.textContent = `Change View (${layouts[nextIndex].replace('-column', '')})`;
+    }
+
+    async checkDateProfit() {
+        const date = document.getElementById('date-picker').value;
+        if (!date) {
+            alert('Please select a date');
+            return;
+        }
+
+        const start = `${date}T00:00:00Z`;
+        const end = `${date}T23:59:59Z`;
+        const { data, error } = await supabaseClient
+            .from('history')
+            .select('profitLoss')
+            .gte('timestamp', start)
+            .lte('timestamp', end);
+
+        if (error) {
+            console.error('Error checking date profit:', error);
+            return;
+        }
+
+        const total = data.reduce((sum, record) => sum + record.profitLoss, 0);
+        document.getElementById('date-profit-result').innerHTML = 
+            `Profit/Loss on ${date}: $${total.toFixed(2)}`;
+    }
+
+    toggleModal(show) {
+        document.getElementById('records-modal').style.display = show ? 'block' : 'none';
+    }
+
+    addNextBet(name) {
+        if (this.consecutiveLosses[name] >= 3) {
+            alert(`${name} has 3 consecutive losses. Please close or view records.`);
+            return;
+        }
+
+        const tbody = document.getElementById(`bets-${name}`);
+        const lastStake = parseFloat(tbody.lastElementChild.querySelector('.stake').value) || 10;
+        const row = document.createElement('tr');
+        row.innerHTML = this.createEmptyBetRow(name).replace('value="10"', `value="${lastStake}"`);
         tbody.appendChild(row);
-        row.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, name));
-        row.querySelector('.delete-bet').addEventListener('click', () => deleteBet(name, 0));
+        
+        row.querySelector('.outcome').addEventListener('change', (e) => 
+            this.updateBet(name, e.target.closest('tr')));
+        row.querySelector('.delete-bet').addEventListener('click', () => 
+            this.deleteBet(name, Array.from(tbody.children).indexOf(row)));
     }
 
-    updateProfitLoss(name);
-    updateNextBetButton(name); // Check if Next Bet should be disabled
-
-    punterDiv.querySelector('.close-punter').addEventListener('click', async () => {
-        if (confirm(`Are you sure you want to close ${name}'s record?`)) {
-            const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
-            await savePunterHistory(name, profitLoss);
-            punterDiv.remove();
-            updateOverallProfit();
-        }
-    });
-
-    punterDiv.querySelector('.next-bet').addEventListener('click', () => addNextBet(name));
-}
-
-function calculateConsecutiveLosses(bets) {
-    let count = 0;
-    for (let i = bets.length - 1; i >= 0; i--) {
-        const outcome = bets[i].outcome;
-        if (outcome === 'L') {
-            count++;
-        } else if (outcome === 'W' || outcome === 'w' || outcome === 'D') {
-            break;
-        }
-    }
-    return count;
-}
-
-function updateNextBetButton(punterName) {
-    const nextBetButton = document.querySelector(`.next-bet[data-punter="${punterName}"]`);
-    if (consecutiveLosses[punterName] >= 3) {
-        nextBetButton.disabled = true;
-        nextBetButton.style.backgroundColor = '#ccc';
-        nextBetButton.style.cursor = 'not-allowed';
-        alert(`${punterName} has 3 consecutive losses. You can only close this punter or view records.`);
-    } else {
-        nextBetButton.disabled = false;
-        nextBetButton.style.backgroundColor = '';
-        nextBetButton.style.cursor = '';
-    }
-}
-
-async function updateBet(event, punterName) {
-    const row = event.target.closest('tr');
-    const outcome = event.target.value;
-    const stake = parseFloat(row.querySelector('.stake').value);
-    const odds = parseFloat(row.querySelector('.odds').value) || 0;
-
-    if (outcome === 'W' || outcome === 'w') row.classList.add('win');
-    else if (outcome === 'L') row.classList.add('loss');
-
-    const game = row.querySelector('.game').value;
-    const bets = Array.from(document.getElementById(`bets-${punterName}`).querySelectorAll('tr')).map(row => ({
-        stake: parseFloat(row.querySelector('.stake').value),
-        game: row.querySelector('.game').value,
-        odds: parseFloat(row.querySelector('.odds').value) || 0,
-        outcome: row.querySelector('.outcome').value
-    }));
-    await savePunterData(punterName, bets);
-
-    // Update consecutive losses
-    consecutiveLosses[punterName] = calculateConsecutiveLosses(bets);
-    console.log(`Consecutive losses for ${punterName}: ${consecutiveLosses[punterName]}`);
-    updateNextBetButton(punterName);
-
-    updateProfitLoss(punterName);
-    updateOverallProfit();
-}
-
-function addNextBet(punterName) {
-    if (consecutiveLosses[punterName] >= 3) {
-        alert(`${punterName} has 3 consecutive losses. You can only close this punter or view records.`);
-        return;
-    }
-
-    const tbody = document.getElementById(`bets-${punterName}`);
-    const lastRow = tbody.querySelector('tr:last-child');
-    if (!lastRow) return;
-
-    const lastStake = parseFloat(lastRow.querySelector('.stake').value);
-    const newRow = document.createElement('tr');
-    newRow.innerHTML = `
-        <td><input type="number" class="stake" value="${lastStake.toFixed(2)}" min="1"></td>
-        <td><input type="text" class="game" placeholder="Enter game"></td>
-        <td><input type="number" class="odds" placeholder="Enter odds" step="0.01" min="1"></td>
-        <td>
-            <select class="outcome">
-                <option value="">--</option>
-                <option value="W">W (Big Win)</option>
-                <option value="w">w (Small Win)</option>
-                <option value="D">D (Draw)</option>
-                <option value="L">L (Loss)</option>
-            </select>
-        </td>
-        <td><button class="delete-bet">Delete</button></td>
-    `;
-    tbody.appendChild(newRow);
-    newRow.querySelector('.outcome').addEventListener('change', (e) => updateBet(e, punterName));
-    newRow.querySelector('.delete-bet').addEventListener('click', () => deleteBet(punterName, tbody.children.length - 1));
-}
-
-async function deleteBet(punterName, betIndex) {
-    const tbody = document.getElementById(`bets-${punterName}`);
-    const rows = tbody.querySelectorAll('tr');
-    if (rows.length === 1) {
-        alert("Cannot delete the last bet. Use the 'Close' button to remove the punter.");
-        return;
-    }
-
-    tbody.deleteRow(betIndex);
-    const bets = Array.from(tbody.querySelectorAll('tr')).map(row => ({
-        stake: parseFloat(row.querySelector('.stake').value),
-        game: row.querySelector('.game').value,
-        odds: parseFloat(row.querySelector('.odds').value) || 0,
-        outcome: row.querySelector('.outcome').value
-    }));
-    await savePunterData(punterName, bets);
-
-    // Update consecutive losses
-    consecutiveLosses[punterName] = calculateConsecutiveLosses(bets);
-    console.log(`Consecutive losses for ${punterName}: ${consecutiveLosses[punterName]}`);
-    updateNextBetButton(punterName);
-
-    updateProfitLoss(punterName);
-    updateOverallProfit();
-}
-
-function updateProfitLoss(punterName) {
-    const tbody = document.getElementById(`bets-${punterName}`);
-    if (!tbody) return;
-
-    let totalProfitLoss = 0;
-    const bets = Array.from(tbody.querySelectorAll('tr'));
-    bets.forEach(row => {
-        const stake = parseFloat(row.querySelector('.stake').value);
-        const odds = parseFloat(row.querySelector('.odds').value) || 0;
-        const outcome = row.querySelector('.outcome').value;
-
-        if (outcome === 'W') totalProfitLoss += stake * (odds - 1);
-        else if (outcome === 'w') totalProfitLoss += (stake * (odds - 1)) / 2;
-        else if (outcome === 'L') totalProfitLoss -= stake;
-    });
-
-    const punterDiv = tbody.closest('.punter-section');
-    const profitLossDiv = punterDiv.querySelector('.profit-loss');
-    profitLossDiv.textContent = `Profit/Loss: $${totalProfitLoss.toFixed(2)}`;
-    profitLossDiv.style.color = totalProfitLoss >= 0 ? 'green' : 'red';
-
-    // Update progress bar
-    const maxProfit = 1000; // Adjust this value as needed
-    const progress = Math.min(Math.abs(totalProfitLoss) / maxProfit * 100, 100);
-    const progressBar = punterDiv.querySelector('.progress-bar');
-    progressBar.style.width = `${progress}%`;
-    progressBar.style.backgroundColor = totalProfitLoss >= 0 ? '#4CAF50' : '#f44336';
-}
-
-async function updateOverallProfit() {
-    console.log('Updating overall profit/loss...');
-    const { data: bets, error: betsError } = await supabaseClient.from('bets').select('stake, odds, outcome');
-    if (betsError) {
-        console.error('Error fetching bets for overall profit:', betsError);
-        return;
-    }
-    const { data: history, error: historyError } = await supabaseClient.from('history').select('profitLoss');
-    if (historyError) {
-        console.error('Error fetching history for overall profit:', historyError);
-        return;
-    }
-
-    let overallProfit = 0;
-
-    // Calculate profit/loss from active bets
-    if (bets) {
-        console.log('Active bets:', bets);
-        bets.forEach(bet => {
-            if (bet.outcome === 'W') overallProfit += bet.stake * (bet.odds - 1);
-            else if (bet.outcome === 'w') overallProfit += (bet.stake * (bet.odds - 1)) / 2;
-            else if (bet.outcome === 'L') overallProfit -= bet.stake;
-        });
-    }
-
-    // Add profit/loss from history
-    if (history) {
-        console.log('History records:', history);
-        history.forEach(record => overallProfit += record.profitLoss);
-    }
-
-    console.log('Calculated overall profit/loss:', overallProfit);
-    const overallProfitDiv = document.getElementById('overall-profit');
-    overallProfitDiv.textContent = `Overall Profit/Loss: $${overallProfit.toFixed(2)}`;
-    overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
-}
-
-async function showRecords() {
-    console.log('Showing records...');
-    const { data: punters, error: puntersError } = await supabaseClient.from('punters').select('*');
-    if (puntersError) {
-        console.error('Error fetching punters for records:', puntersError);
-        return;
-    }
-    const { data: history, error: historyError } = await supabaseClient.from('history').select('*, punters(name)').order('timestamp', { ascending: false });
-    if (historyError) {
-        console.error('Error fetching history for records:', historyError);
-        return;
-    }
-
-    console.log('History data:', history);
-
-    const recordsContent = document.getElementById('records-content');
-    let html = '<table><thead><tr><th>Punter</th><th>Most Recent Date</th><th>Total Profit/Loss</th></tr></thead><tbody>';
-
-    if (history && history.length > 0) {
-        const groupedRecords = {};
-        for (const record of history) {
-            const punterName = record.punters?.name || 'Unknown';
-            if (!groupedRecords[punterName]) {
-                groupedRecords[punterName] = { totalProfitLoss: 0, mostRecentDate: null };
-            }
-            groupedRecords[punterName].totalProfitLoss += record.profitLoss;
-            const recordDate = new Date(record.timestamp);
-            if (!groupedRecords[punterName].mostRecentDate || recordDate > groupedRecords[punterName].mostRecentDate) {
-                groupedRecords[punterName].mostRecentDate = recordDate;
-            }
+    async deleteBet(name, index) {
+        const tbody = document.getElementById(`bets-${name}`);
+        if (tbody.children.length === 1) {
+            alert('Cannot delete last bet. Use Close instead.');
+            return;
         }
 
-        const sortedPunterNames = Object.keys(groupedRecords).sort();
-        sortedPunterNames.forEach(name => {
-            const { totalProfitLoss, mostRecentDate } = groupedRecords[name];
-            const formattedDate = mostRecentDate.toLocaleString();
-            html += `
-                <tr>
-                    <td>${name}</td>
-                    <td>${formattedDate}</td>
-                    <td style="color: ${totalProfitLoss >= 0 ? 'green' : 'red'}">$${totalProfitLoss.toFixed(2)}</td>
-                </tr>
-            `;
-        });
-    } else {
-        html += '<tr><td colspan="3">No records found.</td></tr>';
+        tbody.deleteRow(index);
+        const bets = this.getBetsFromTable(name);
+        await this.savePunterData(name, bets);
+        this.consecutiveLosses[name] = this.calculateConsecutiveLosses(bets);
+        this.updateNextBetButton(name);
+        this.updateProfitLoss(name);
+        this.updateOverallProfit();
     }
-
-    html += '</tbody></table>';
-    recordsContent.innerHTML = html;
-    document.getElementById('records-modal').style.display = 'block';
 }
+
+const app = new BettingApp();
