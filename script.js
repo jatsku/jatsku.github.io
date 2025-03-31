@@ -5,175 +5,161 @@ const supabaseClient = supabase.createClient(
 );
 
 class BettingApp {
-    constructor() {
-        this.consecutiveLosses = {};
-        this.initializeEventListeners();
-        this.loadInitialData();
-    }
+    // ... (other methods remain the same)
 
-    async initializeEventListeners() {
-        document.addEventListener('DOMContentLoaded', () => {
-            // Core buttons
-            this.setupButton('#add-punter', this.handleAddPunter.bind(this));
-            this.setupButton('#view-records', this.showRecords.bind(this));
-            this.setupButton('#export-data', this.exportData.bind(this));
-            this.setupButton('#clear-data', this.clearData.bind(this));
-            this.setupButton('#change-view', this.toggleLayout.bind(this));
-            this.setupButton('#close-modal', () => this.toggleModal(false));
-            this.setupButton('#check-date-profit', this.checkDateProfit.bind(this));
+    async showRecords() {
+        try {
+            // Fetch all history records without date filter initially
+            const { data: history, error } = await supabaseClient
+                .from('history')
+                .select('*, punters(name)')
+                .order('timestamp', { ascending: false });
 
-            // Import handling
-            const importInput = document.getElementById('import-data');
-            this.setupButton('#import-button', () => importInput.click());
-            if (importInput) {
-                importInput.addEventListener('change', this.importData.bind(this));
+            if (error) {
+                console.error('Error fetching history:', error);
+                alert('Failed to load records: ' + error.message);
+                return;
             }
 
-            // Modal outside click
-            const modal = document.getElementById('records-modal');
-            window.addEventListener('click', (e) => {
-                if (e.target === modal) this.toggleModal(false);
-            });
+            console.log('Raw history data:', history); // Debug log
+
+            if (!history || history.length === 0) {
+                console.log('No history records found in database');
+                this.displayRecords({}); // Show empty table
+                return;
+            }
+
+            // Process records
+            const grouped = this.groupHistory(history);
+            console.log('Grouped records:', grouped); // Debug log
+            this.displayRecords(grouped);
+        } catch (err) {
+            console.error('Unexpected error in showRecords:', err);
+            alert('An unexpected error occurred while loading records');
+        }
+    }
+
+    groupHistory(history) {
+        const grouped = {};
+        const today = new Date().toISOString().split('T')[0]; // Current date in YYYY-MM-DD
+
+        history.forEach(record => {
+            const name = record.punters?.name || 'Unknown';
+            const recordDate = new Date(record.timestamp);
+            const dateStr = recordDate.toISOString().split('T')[0];
+
+            if (!grouped[name]) {
+                grouped[name] = { 
+                    profitLoss: 0, 
+                    latest: null,
+                    todayProfit: 0,
+                    hasToday: false 
+                };
+            }
+
+            grouped[name].profitLoss += record.profitLoss;
+            
+            // Check if record is from today
+            if (dateStr === today) {
+                grouped[name].todayProfit += record.profitLoss;
+                grouped[name].hasToday = true;
+            }
+
+            if (!grouped[name].latest || recordDate > grouped[name].latest) {
+                grouped[name].latest = recordDate;
+            }
         });
+
+        return grouped;
     }
 
-    setupButton(selector, handler) {
-        const button = document.querySelector(selector);
-        if (button) {
-            button.addEventListener('click', handler);
-        } else {
-            console.error(`${selector} not found`);
-        }
-    }
-
-    async loadInitialData() {
-        try {
-            await this.loadPunters();
-            this.updateOverallProfit();
-        } catch (error) {
-            console.error('Failed to load initial data:', error);
-        }
-    }
-
-    async loadPunters() {
-        const { data: punters, error } = await supabaseClient
-            .from('punters')
-            .select('*');
-        
-        if (error) throw new Error(`Failed to load punters: ${error.message}`);
-        
-        for (const punter of punters) {
-            const bets = await this.fetchBets(punter.id);
-            this.consecutiveLosses[punter.name] = this.calculateConsecutiveLosses(bets);
-            this.renderPunter(punter.name, bets);
-        }
-    }
-
-    async fetchBets(punterId) {
-        const { data, error } = await supabaseClient
-            .from('bets')
-            .select('*')
-            .eq('punter_id', punterId);
-        
-        if (error) console.error(`Error fetching bets: ${error.message}`);
-        return data || [];
-    }
-
-    async handleAddPunter() {
-        const name = prompt('Enter punter name:');
-        if (!name) return;
-
-        const { error } = await supabaseClient
-            .from('punters')
-            .insert({ name });
-        
-        if (error) {
-            console.error('Error adding punter:', error);
-            return;
-        }
-
-        this.consecutiveLosses[name] = 0;
-        this.renderPunter(name);
-        this.updateOverallProfit();
-    }
-
-    renderPunter(name, bets = []) {
-        const container = document.getElementById('punters-container');
-        const punterDiv = document.createElement('div');
-        punterDiv.className = 'punter-section';
-        punterDiv.dataset.punter = name;
-
-        punterDiv.innerHTML = `
-            <div class="punter-header">
-                <h2>${name}</h2>
-                <button class="close-punter">Close</button>
-            </div>
-            <div class="profit-loss">Profit/Loss: $0.00</div>
-            <div class="progress-container"><div class="progress-bar"></div></div>
-            <table class="punter-table">
+    displayRecords(grouped) {
+        const content = document.getElementById('records-content');
+        let html = `
+            <table>
                 <thead>
                     <tr>
-                        <th>Stake</th><th>Game</th><th>Odds</th><th>Outcome</th><th>Actions</th>
+                        <th>Punter</th>
+                        <th>Latest Date</th>
+                        <th>Total P/L</th>
+                        <th>Today P/L</th>
                     </tr>
                 </thead>
-                <tbody id="bets-${name}">${this.renderBets(name, bets)}</tbody>
-            </table>
-            <button class="next-bet" data-punter="${name}">Next Bet</button>
+                <tbody>
         `;
 
-        container.appendChild(punterDiv);
-        
-        // Event listeners
-        punterDiv.querySelector('.close-punter')
-            .addEventListener('click', () => this.closePunter(name));
-        punterDiv.querySelector('.next-bet')
-            .addEventListener('click', () => this.addNextBet(name));
-        
-        this.updateProfitLoss(name);
-        this.updateNextBetButton(name);
+        const punterNames = Object.keys(grouped).sort();
+        if (punterNames.length === 0) {
+            html += '<tr><td colspan="4">No records found</td></tr>';
+        } else {
+            punterNames.forEach(name => {
+                const { profitLoss, latest, todayProfit, hasToday } = grouped[name];
+                html += `
+                    <tr>
+                        <td>${name}</td>
+                        <td>${latest.toLocaleString()}</td>
+                        <td style="color: ${profitLoss >= 0 ? 'green' : 'red'}">
+                            $${profitLoss.toFixed(2)}
+                        </td>
+                        <td style="color: ${todayProfit >= 0 ? 'green' : 'red'}">
+                            ${hasToday ? '$' + todayProfit.toFixed(2) : '-'}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += '</tbody></table>';
+        content.innerHTML = html;
+        this.toggleModal(true);
     }
 
-    renderBets(name, bets) {
-        if (!bets.length) return this.createEmptyBetRow(name);
-        
-        return bets.map((bet, index) => `
-            <tr class="${bet.outcome === 'W' || bet.outcome === 'w' ? 'win' : bet.outcome === 'L' ? 'loss' : ''}">
-                <td><input type="number" class="stake" value="${bet.stake}" min="1"></td>
-                <td><input type="text" class="game" value="${bet.game || ''}"></td>
-                <td><input type="number" class="odds" value="${bet.odds || ''}" step="0.01" min="1"></td>
-                <td>
-                    <select class="outcome">
-                        <option value="">--</option>
-                        <option value="W" ${bet.outcome === 'W' ? 'selected' : ''}>W (Big Win)</option>
-                        <option value="w" ${bet.outcome === 'w' ? 'selected' : ''}>w (Small Win)</option>
-                        <option value="D" ${bet.outcome === 'D' ? 'selected' : ''}>D (Draw)</option>
-                        <option value="L" ${bet.outcome === 'L' ? 'selected' : ''}>L (Loss)</option>
-                    </select>
-                </td>
-                <td><button class="delete-bet" data-index="${index}">Delete</button></td>
-            </tr>
-        `).join('');
+    // Modified closePunter to ensure history is saved correctly
+    async closePunter(name) {
+        if (!confirm(`Close ${name}'s record?`)) return;
+
+        try {
+            const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
+            const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss')
+                .textContent.replace('Profit/Loss: $', ''));
+
+            const { data: punter, error: fetchError } = await supabaseClient
+                .from('punters')
+                .select('id')
+                .eq('name', name)
+                .single();
+
+            if (fetchError) throw new Error(`Failed to fetch punter: ${fetchError.message}`);
+
+            if (punter) {
+                const timestamp = new Date().toISOString();
+                const { error: insertError } = await supabaseClient
+                    .from('history')
+                    .insert({
+                        punter_id: punter.id,
+                        timestamp: timestamp,
+                        profitLoss: profitLoss
+                    });
+
+                if (insertError) throw new Error(`Failed to save history: ${insertError.message}`);
+
+                console.log(`Saved history for ${name} at ${timestamp}: $${profitLoss}`);
+
+                await supabaseClient.from('bets').delete().eq('punter_id', punter.id);
+                await supabaseClient.from('punters').delete().eq('id', punter.id);
+            }
+
+            punterDiv.remove();
+            delete this.consecutiveLosses[name];
+            this.updateOverallProfit();
+        } catch (err) {
+            console.error('Error closing punter:', err);
+            alert('Failed to close punter: ' + err.message);
+        }
     }
 
-    createEmptyBetRow(name) {
-        return `
-            <tr>
-                <td><input type="number" class="stake" value="10" min="1"></td>
-                <td><input type="text" class="game" placeholder="Enter game"></td>
-                <td><input type="number" class="odds" placeholder="Enter odds" step="0.01" min="1"></td>
-                <td>
-                    <select class="outcome">
-                        <option value="">--</option>
-                        <option value="W">W (Big Win)</option>
-                        <option value="w">w (Small Win)</option>
-                        <option value="D">D (Draw)</option>
-                        <option value="L">L (Loss)</option>
-                    </select>
-                </td>
-                <td><button class="delete-bet" data-index="0">Delete</button></td>
-            </tr>
-        `;
-    }
+    // ... (other methods remain the same)
+}
 
     async updateBet(name, row) {
         const bets = this.getBetsFromTable(name);
