@@ -15,9 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
         initializeEventListeners() {
             document.getElementById('add-punter').addEventListener('click', () => this.handleAddPunter());
             document.getElementById('view-records').addEventListener('click', () => this.showRecords());
-            document.getElementById('export-data').addEventListener('click', () => this.exportData());
-            document.getElementById('import-button').addEventListener('click', () => document.getElementById('import-data').click());
-            document.getElementById('import-data').addEventListener('change', (e) => this.importData(e));
             document.getElementById('clear-data').addEventListener('click', () => this.clearData());
             document.getElementById('change-view').addEventListener('click', () => this.toggleLayout());
             document.getElementById('close-modal').addEventListener('click', () => this.toggleModal(false));
@@ -58,14 +55,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = prompt('Enter punter name:');
             if (!name) return;
 
-            // Check if the punter exists (closed or not)
             const { data: existingPunter, error: checkError } = await this.supabaseClient
                 .from('punters')
                 .select('id, closed')
                 .eq('name', name)
                 .single();
 
-            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
+            if (checkError && checkError.code !== 'PGRST116') {
                 console.error('Error checking punter:', checkError);
                 alert('Error checking punter: ' + checkError.message);
                 return;
@@ -76,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert(`Punter "${name}" is already active. Please close it before starting a new session.`);
                     return;
                 }
-                // Reopen the existing punter
                 const { error: updateError } = await this.supabaseClient
                     .from('punters')
                     .update({ closed: false })
@@ -86,11 +81,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('Failed to reopen punter: ' + updateError.message);
                     return;
                 }
-                await this.supabaseClient.from('bets').delete().eq('punter_id', existingPunter.id); // Clear old bets
+                await this.supabaseClient.from('bets').delete().eq('punter_id', existingPunter.id);
                 this.consecutiveLosses[name] = 0;
                 this.renderPunter(name, []);
             } else {
-                // Create a new punter
                 const { error: insertError } = await this.supabaseClient.from('punters').insert({ name, closed: false });
                 if (insertError) {
                     console.error('Add punter error:', insertError.message, insertError.code);
@@ -397,52 +391,28 @@ document.addEventListener('DOMContentLoaded', () => {
             this.toggleModal(true);
         }
 
-        async exportData() {
-            const [punters, bets, history] = await Promise.all([
-                this.supabaseClient.from('punters').select('*'),
-                this.supabaseClient.from('bets').select('*'),
-                this.supabaseClient.from('history').select('*')
-            ]);
-
-            const data = { punters: punters.data, bets: bets.data, history: history.data };
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'betting-data.json';
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        async importData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                const data = JSON.parse(e.target.result);
-                await Promise.all([
-                    this.supabaseClient.from('punters').delete().neq('id', '0'),
-                    this.supabaseClient.from('bets').delete().neq('id', '0'),
-                    this.supabaseClient.from('history').delete().neq('id', '0')
-                ]);
-                await Promise.all([
-                    this.supabaseClient.from('punters').insert(data.punters),
-                    this.supabaseClient.from('bets').insert(data.bets),
-                    this.supabaseClient.from('history').insert(data.history)
-                ]);
-                location.reload();
-            };
-            reader.readAsText(file);
-        }
-
         async clearData() {
             if (!confirm('Clear all data? This cannot be undone.')) return;
-            await Promise.all([
-                this.supabaseClient.from('punters').delete().neq('id', '0'),
-                this.supabaseClient.from('bets').delete().neq('id', '0'),
-                this.supabaseClient.from('history').delete().neq('id', '0')
-            ]);
-            location.reload();
+            try {
+                const [punterRes, betsRes, historyRes] = await Promise.all([
+                    this.supabaseClient.from('punters').delete().select(),
+                    this.supabaseClient.from('bets').delete().select(),
+                    this.supabaseClient.from('history').delete().select()
+                ]);
+
+                console.log('Cleared punters:', punterRes.data);
+                console.log('Cleared bets:', betsRes.data);
+                console.log('Cleared history:', historyRes.data);
+
+                if (punterRes.error) throw punterRes.error;
+                if (betsRes.error) throw betsRes.error;
+                if (historyRes.error) throw historyRes.error;
+
+                location.reload();
+            } catch (error) {
+                console.error('Error clearing data:', error.message, error.code);
+                alert('Failed to clear data: ' + error.message);
+            }
         }
 
         toggleLayout() {
