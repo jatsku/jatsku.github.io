@@ -56,7 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (name) {
                 const { error } = await supabaseClient.from('punters').insert({ name });
                 if (error) console.error('Error adding punter:', error);
-                else addPunter(name);
+                else {
+                    addPunter(name);
+                    updateOverallProfit();
+                }
             }
         });
     } else {
@@ -205,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Error fetching profit/loss by date:', error);
                 return;
             }
-            const total = data.reduce((sum, record) => sum + record.profitLoss, 0);
+            const total = data ? data.reduce((sum, record) => sum + record.profitLoss, 0) : 0;
             document.getElementById('date-profit-result').innerHTML = `Profit/Loss on ${date}: $${total.toFixed(2)}`;
         });
     } else {
@@ -244,6 +247,7 @@ async function savePunterData(name, bets) {
 }
 
 async function savePunterHistory(name, profitLoss) {
+    console.log(`Saving history for punter: ${name}, Profit/Loss: ${profitLoss}`);
     const { data: punter, error } = await supabaseClient.from('punters').select('id').eq('name', name).single();
     if (error) {
         console.error('Error fetching punter for history:', error);
@@ -255,7 +259,11 @@ async function savePunterHistory(name, profitLoss) {
         timestamp: new Date().toISOString(),
         profitLoss
     });
-    if (insertError) console.error('Error saving history:', insertError);
+    if (insertError) {
+        console.error('Error saving history:', insertError);
+    } else {
+        console.log(`Successfully saved history for ${name}: Profit/Loss = ${profitLoss}`);
+    }
     await supabaseClient.from('bets').delete().eq('punter_id', punterId);
 }
 
@@ -450,39 +458,74 @@ function updateProfitLoss(punterName) {
 }
 
 async function updateOverallProfit() {
+    console.log('Updating overall profit/loss...');
     const { data: bets, error: betsError } = await supabaseClient.from('bets').select('stake, odds, outcome');
-    if (betsError) console.error('Error fetching bets for overall profit:', betsError);
+    if (betsError) {
+        console.error('Error fetching bets for overall profit:', betsError);
+        return;
+    }
     const { data: history, error: historyError } = await supabaseClient.from('history').select('profitLoss');
-    if (historyError) console.error('Error fetching history for overall profit:', historyError);
+    if (historyError) {
+        console.error('Error fetching history for overall profit:', historyError);
+        return;
+    }
 
     let overallProfit = 0;
-    if (bets) {
+
+    // Calculate profit/loss from active bets
+    if (bets && bets.length > 0) {
+        console.log('Active bets:', bets);
         bets.forEach(bet => {
             if (bet.outcome === 'W') overallProfit += bet.stake * (bet.odds - 1);
             else if (bet.outcome === 'w') overallProfit += (bet.stake * (bet.odds - 1)) / 2;
             else if (bet.outcome === 'L') overallProfit -= bet.stake;
         });
-    }
-    if (history) {
-        history.forEach(record => overallProfit += record.profitLoss);
+    } else {
+        console.log('No active bets found.');
     }
 
+    // Add profit/loss from history
+    if (history && history.length > 0) {
+        console.log('History records:', history);
+        history.forEach(record => {
+            overallProfit += record.profitLoss;
+        });
+    } else {
+        console.log('No history records found.');
+    }
+
+    console.log('Calculated overall profit/loss:', overallProfit);
+
     const overallProfitDiv = document.getElementById('overall-profit');
-    overallProfitDiv.textContent = `Overall Profit/Loss: $${overallProfit.toFixed(2)}`;
-    overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
+    if (overallProfitDiv) {
+        overallProfitDiv.textContent = `Overall Profit/Loss: $${overallProfit.toFixed(2)}`;
+        overallProfitDiv.style.color = overallProfit >= 0 ? 'green' : 'red';
+    } else {
+        console.error('Overall Profit div not found');
+    }
 }
 
 async function showRecords() {
+    console.log('Showing records...');
     const { data: punters, error: puntersError } = await supabaseClient.from('punters').select('*');
-    if (puntersError) console.error('Error fetching punters for records:', puntersError);
+    if (puntersError) {
+        console.error('Error fetching punters for records:', puntersError);
+        return;
+    }
     const { data: history, error: historyError } = await supabaseClient.from('history').select('punter_id, timestamp, profitLoss');
-    if (historyError) console.error('Error fetching history for records:', historyError);
+    if (historyError) {
+        console.error('Error fetching history for records:', historyError);
+        return;
+    }
+
+    console.log('Punters:', punters);
+    console.log('History:', history);
 
     const recordsContent = document.getElementById('records-content');
     let html = '<table><thead><tr><th>Punter</th><th>Most Recent Date</th><th>Total Profit/Loss</th></tr></thead><tbody>';
 
     const groupedRecords = {};
-    if (punters && history) {
+    if (punters && history && history.length > 0) {
         for (const punter of punters) {
             const punterHistory = history.filter(h => h.punter_id === punter.id);
             if (punterHistory.length === 0) continue;
@@ -497,20 +540,22 @@ async function showRecords() {
 
             groupedRecords[punter.name] = { totalProfitLoss, mostRecentDate };
         }
-    }
 
-    const sortedPunterNames = Object.keys(groupedRecords).sort();
-    sortedPunterNames.forEach(name => {
-        const { totalProfitLoss, mostRecentDate } = groupedRecords[name];
-        const formattedDate = mostRecentDate.toLocaleString();
-        html += `
-            <tr>
-                <td>${name}</td>
-                <td>${formattedDate}</td>
-                <td style="color: ${totalProfitLoss >= 0 ? 'green' : 'red'}">$${totalProfitLoss.toFixed(2)}</td>
-            </tr>
-        `;
-    });
+        const sortedPunterNames = Object.keys(groupedRecords).sort();
+        sortedPunterNames.forEach(name => {
+            const { totalProfitLoss, mostRecentDate } = groupedRecords[name];
+            const formattedDate = mostRecentDate.toLocaleString();
+            html += `
+                <tr>
+                    <td>${name}</td>
+                    <td>${formattedDate}</td>
+                    <td style="color: ${totalProfitLoss >= 0 ? 'green' : 'red'}">$${totalProfitLoss.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+    } else {
+        html += '<tr><td colspan="3">No records found.</td></tr>';
+    }
 
     html += '</tbody></table>';
     recordsContent.innerHTML = html;
