@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor() {
             this.supabaseClient = supabaseClient;
             this.consecutiveLosses = {};
+            this.sessionStartTimes = {}; // Store session start times
             this.initializeEventListeners();
             this.loadInitialData();
         }
@@ -36,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const punter of punters) {
                 const bets = await this.fetchBets(punter.id);
                 this.consecutiveLosses[punter.name] = this.calculateConsecutiveLosses(bets);
+                this.sessionStartTimes[punter.name] = new Date().toISOString(); // Set start time for active punters
                 this.renderPunter(punter.name, bets);
             }
         }
@@ -62,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const sessionStart = new Date().toISOString(); // Record start time
+
             if (existingPunter) {
                 if (!existingPunter.closed) {
                     alert(`Punter "${name}" is already active. Please close it before starting a new session.`);
@@ -78,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 await this.supabaseClient.from('bets').delete().eq('punter_id', existingPunter.id);
                 this.consecutiveLosses[name] = 0;
+                this.sessionStartTimes[name] = sessionStart; // Store start time
                 this.renderPunter(name, []);
             } else {
                 const { error: insertError } = await this.supabaseClient.from('punters').insert({ name, closed: false });
@@ -87,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 this.consecutiveLosses[name] = 0;
+                this.sessionStartTimes[name] = sessionStart; // Store start time
                 this.renderPunter(name);
             }
             this.updateOverallProfit();
@@ -279,6 +285,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
             const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
             const bets = this.getBetsFromTable(name);
+            const sessionStop = new Date().toISOString(); // Record stop time
+            const sessionStart = this.sessionStartTimes[name]; // Retrieve start time
 
             console.log(`Attempting to close punter: ${name}, Profit/Loss: ${profitLoss}, Bets:`, bets);
 
@@ -298,15 +306,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Punter ID:', punter.id);
                 const insertPayload = {
                     punter_id: punter.id,
-                    timestamp: new Date().toISOString(),
+                    timestamp: sessionStop, // Keep for compatibility
                     profitloss: profitLoss,
-                    bets: JSON.parse(JSON.stringify(bets)) // Ensure clean JSON
+                    bets: JSON.parse(JSON.stringify(bets)),
+                    session_start: sessionStart,
+                    session_stop: sessionStop
                 };
                 console.log('Inserting into history:', insertPayload);
 
                 const { data: historyData, error: insertError } = await this.supabaseClient
                     .from('history')
-                    .insert([insertPayload]) // Wrap in array for Supabase
+                    .insert([insertPayload])
                     .select();
 
                 if (insertError) {
@@ -336,6 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             punterDiv.remove();
             delete this.consecutiveLosses[name];
+            delete this.sessionStartTimes[name]; // Clean up
             await this.updateOverallProfit();
         }
 
@@ -413,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const { data: history, error: historyError } = await this.supabaseClient
                     .from('history')
-                    .select('punter_id, profitloss, timestamp, bets')
+                    .select('punter_id, profitloss, timestamp, bets, session_start, session_stop')
                     .order('timestamp', { ascending: false });
                 if (historyError) throw historyError;
 
@@ -443,7 +454,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         stats.sessions.push({ 
                             profitloss: record.profitloss, 
                             timestamp: record.timestamp, 
-                            bets: record.bets || []
+                            bets: record.bets || [],
+                            session_start: record.session_start,
+                            session_stop: record.session_stop
                         });
                     }
                 });
@@ -537,12 +550,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         detailsHtml += `<p>No sessions yet</p>`;
                     } else {
                         stat.sessions.forEach(session => {
-                            const date = new Date(session.timestamp);
+                            const startDate = new Date(session.session_start || session.timestamp);
+                            const stopDate = new Date(session.session_stop || session.timestamp);
                             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                            const formattedDate = `${dayNames[date.getDay()]}, ${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                            const formatTime = (date) => `${dayNames[date.getDay()]}, ${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                            const startFormatted = formatTime(startDate);
+                            const stopFormatted = formatTime(stopDate);
                             detailsHtml += `
                                 <div style="margin-bottom: 20px;">
-                                    <h4>Session: ${formattedDate} - Profit/Loss: <span style="color: ${session.profitloss >= 0 ? 'green' : 'red'}">$${session.profitloss.toFixed(2)}</span></h4>
+                                    <h4>Session Start: ${startFormatted} - Stop: ${stopFormatted}</h4>
+                                    <p>Profit/Loss: <span style="color: ${session.profitloss >= 0 ? 'green' : 'red'}">$${session.profitloss.toFixed(2)}</span></p>
                                     <table style="width: 100%; border-collapse: collapse;">
                                         <thead>
                                             <tr style="background: #f2f2f2;">
@@ -554,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         </thead>
                                         <tbody>
                             `;
-                            if (session.bets.length === 0) {
+                            if (!session.bets || session.bets.length === 0) {
                                 detailsHtml += `<tr><td colspan="4" style="padding: 8px; border: 1px solid #ddd;">No bets recorded</td></tr>`;
                             } else {
                                 session.bets.forEach(bet => {
