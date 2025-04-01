@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const { data: history, error: historyError } = await this.supabaseClient
                     .from('history')
-                    .select('punter_id, profitloss, timestamp');
+                    .select('punter_id, profitloss');
                 if (historyError) throw historyError;
 
                 const { data: bets, error: betsError } = await this.supabaseClient
@@ -424,8 +424,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     punterStats[punter.id] = {
                         name: punter.name,
                         totalProfitLoss: 0,
-                        wins: 0,
-                        losses: 0,
+                        wins: 0, // Session wins (profitloss > 0)
+                        losses: 0, // Session losses (profitloss < 0)
                         activeProfitLoss: 0
                     };
                 });
@@ -434,6 +434,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const stats = punterStats[record.punter_id];
                     if (stats) {
                         stats.totalProfitLoss += record.profitloss;
+                        if (record.profitloss > 0) stats.wins++;
+                        else if (record.profitloss < 0) stats.losses++;
                     }
                 });
 
@@ -443,8 +445,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (bet.outcome === 'W') stats.activeProfitLoss += bet.stake * (bet.odds - 1);
                         else if (bet.outcome === 'w') stats.activeProfitLoss += (bet.stake * (bet.odds - 1)) / 2;
                         else if (bet.outcome === 'L') stats.activeProfitLoss -= bet.stake;
-                        if (bet.outcome === 'W' || bet.outcome === 'w') stats.wins++;
-                        else if (bet.outcome === 'L') stats.losses++;
                     }
                 });
 
@@ -474,8 +474,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             <th style="padding: 8px; border: 1px solid #ddd;">Punter</th>
                             <th style="padding: 8px; border: 1px solid #ddd;">Total P/L</th>
                             <th style="padding: 8px; border: 1px solid #ddd;">Active P/L</th>
-                            <th style="padding: 8px; border: 1px solid #ddd;">Wins</th>
-                            <th style="padding: 8px; border: 1px solid #ddd;">Losses</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Session Wins</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Session Losses</th>
                         </tr>
                     </thead>
                     <tbody>
