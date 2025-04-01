@@ -347,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async showRecords() {
             const { data: history, error } = await this.supabaseClient
                 .from('history')
-                .select('*, punters(name)')
+                .select('punter_id, profitloss, timestamp')
                 .order('timestamp', { ascending: false });
 
             if (error) {
@@ -357,9 +357,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             console.log('History data in showRecords:', history);
 
+            // Fetch punter names separately
+            const punterIds = [...new Set(history.map(record => record.punter_id))];
+            const { data: punters, error: punterError } = await this.supabaseClient
+                .from('punters')
+                .select('id, name')
+                .in('id', punterIds);
+
+            if (punterError) {
+                console.error('Error fetching punters:', punterError);
+                alert('Failed to fetch punter names: ' + punterError.message);
+                return;
+            }
+
+            const punterMap = {};
+            punters.forEach(p => (punterMap[p.id] = p.name));
+
             const grouped = {};
             history.forEach(record => {
-                const name = record.punters?.name || 'Unknown';
+                const name = punterMap[record.punter_id] || 'Unknown';
                 if (!grouped[name]) {
                     grouped[name] = { profitLoss: 0, latest: null };
                 }
@@ -370,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            let html = '<table><thead><tr><th>Punter</th><th>Latest</th><th>Total</th></tr></thead><tbody>';
+            let html = '<table><thead><tr><th>Punter</th><th>Latest Session</th><th>Total Profit/Loss</th></tr></thead><tbody>';
             if (!Object.keys(grouped).length) {
                 html += '<tr><td colspan="3">No records</td></tr>';
             } else {
@@ -395,9 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('Clear all data? This cannot be undone.')) return;
             try {
                 const [punterRes, betsRes, historyRes] = await Promise.all([
-                    this.supabaseClient.from('punters').delete().select(),
-                    this.supabaseClient.from('bets').delete().select(),
-                    this.supabaseClient.from('history').delete().select()
+                    this.supabaseClient.from('punters').delete().is('id', null).neq('id', null).select(),
+                    this.supabaseClient.from('bets').delete().is('id', null).neq('id', null).select(),
+                    this.supabaseClient.from('history').delete().is('id', null).neq('id', null).select()
                 ]);
 
                 console.log('Cleared punters:', punterRes.data);
