@@ -411,9 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!confirm('Clear all data? This cannot be undone.')) return;
     try {
         const [punterRes, betsRes, historyRes] = await Promise.all([
-            this.supabaseClient.from('punters').delete().neq('id', null).select(),
-            this.supabaseClient.from('bets').delete().neq('id', null).select(),
-            this.supabaseClient.from('history').delete().neq('id', null).select()
+            this.supabaseClient.from('punters').delete().neq('name', '').select(),
+            this.supabaseClient.from('bets').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000').select(),
+            this.supabaseClient.from('history').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000').select()
         ]);
 
         console.log('Cleared punters:', punterRes.data);
