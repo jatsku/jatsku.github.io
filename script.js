@@ -8,12 +8,11 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor() {
             this.supabaseClient = supabaseClient;
             this.consecutiveLosses = {};
-            this.sessionStartTimes = {}; // Track session start times
+            this.sessionStartTimes = {}; // Store session start times
             this.initializeEventListeners();
             this.loadInitialData();
         }
 
-        /** Initialize event listeners for buttons */
         initializeEventListeners() {
             document.getElementById('add-punter').addEventListener('click', () => this.handleAddPunter());
             document.getElementById('clear-data').addEventListener('click', () => this.clearData());
@@ -21,13 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('view-dashboard').addEventListener('click', () => this.showDashboard());
         }
 
-        /** Load initial data on page load */
         async loadInitialData() {
             await this.loadPunters();
             this.updateOverallProfit();
         }
 
-        /** Fetch and render active punters */
         async loadPunters() {
             const { data: punters, error } = await this.supabaseClient
                 .from('punters')
@@ -40,19 +37,17 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const punter of punters) {
                 const bets = await this.fetchBets(punter.id);
                 this.consecutiveLosses[punter.name] = this.calculateConsecutiveLosses(bets);
-                this.sessionStartTimes[punter.name] = new Date().toISOString(); // Set start time
+                this.sessionStartTimes[punter.name] = new Date().toISOString(); // Set start time for active punters
                 this.renderPunter(punter.name, bets);
             }
         }
 
-        /** Fetch bets for a specific punter */
         async fetchBets(punterId) {
             const { data, error } = await this.supabaseClient.from('bets').select('*').eq('punter_id', punterId);
             if (error) console.error('Error fetching bets:', error);
             return data || [];
         }
 
-        /** Handle adding or reopening a punter */
         async handleAddPunter() {
             const name = prompt('Enter punter name:');
             if (!name) return;
@@ -69,11 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const sessionStart = new Date().toISOString();
+            const sessionStart = new Date().toISOString(); // Record start time
 
             if (existingPunter) {
                 if (!existingPunter.closed) {
-                    alert(`Punter "${name}" is already active. Please close it first.`);
+                    alert(`Punter "${name}" is already active. Please close it before starting a new session.`);
                     return;
                 }
                 const { error: updateError } = await this.supabaseClient
@@ -87,23 +82,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 await this.supabaseClient.from('bets').delete().eq('punter_id', existingPunter.id);
                 this.consecutiveLosses[name] = 0;
-                this.sessionStartTimes[name] = sessionStart;
+                this.sessionStartTimes[name] = sessionStart; // Store start time
                 this.renderPunter(name, []);
             } else {
                 const { error: insertError } = await this.supabaseClient.from('punters').insert({ name, closed: false });
                 if (insertError) {
-                    console.error('Add punter error:', insertError);
+                    console.error('Add punter error:', insertError.message, insertError.code);
                     alert('Failed to add punter: ' + insertError.message);
                     return;
                 }
                 this.consecutiveLosses[name] = 0;
-                this.sessionStartTimes[name] = sessionStart;
+                this.sessionStartTimes[name] = sessionStart; // Store start time
                 this.renderPunter(name);
             }
             this.updateOverallProfit();
         }
 
-        /** Render a punter's UI section */
         renderPunter(name, bets = []) {
             const container = document.getElementById('punters-container');
             const punterDiv = document.createElement('div');
@@ -115,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h2>${name}</h2>
                     <button class="close-punter">Close</button>
                 </div>
-                <div class="profit-loss">Profit/Loss: €0.00</div>
+                <div class="profit-loss">Profit/Loss: $0.00</div>
                 <div class="progress-container"><div class="progress-bar"></div></div>
                 <table class="punter-table">
                     <thead>
@@ -130,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             punterDiv.querySelector('.close-punter').addEventListener('click', () => this.closePunter(name));
             punterDiv.querySelector('.next-bet').addEventListener('click', () => this.addNextBet(name));
-
+            
             const tbody = punterDiv.querySelector(`#bets-${name}`);
             tbody.querySelectorAll('.outcome').forEach(select => {
                 select.addEventListener('change', (e) => this.updateBet(name, e.target.closest('tr')));
@@ -143,7 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateNextBetButton(name);
         }
 
-        /** Render bets table rows */
         renderBets(name, bets) {
             if (!bets.length) return this.createEmptyBetRow(name);
             return bets.map((bet, index) => `
@@ -165,7 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
             `).join('');
         }
 
-        /** Create an empty bet row */
         createEmptyBetRow(name) {
             return `
                 <tr>
@@ -186,7 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        /** Update bet data when outcome changes */
         async updateBet(name, row) {
             const bets = this.getBetsFromTable(name);
             await this.savePunterData(name, bets);
@@ -196,7 +187,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateOverallProfit();
         }
 
-        /** Save punter bets to Supabase */
         async savePunterData(name, bets) {
             const { data: punter } = await this.supabaseClient.from('punters').select('id').eq('name', name).single();
             if (!punter) return;
@@ -207,14 +197,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        /** Calculate consecutive losses */
         calculateConsecutiveLosses(bets) {
             if (bets.length < 3) return bets.filter(bet => bet.outcome === 'L').length;
             const lastThreeBets = bets.slice(-3);
             return lastThreeBets.every(bet => bet.outcome === 'L') ? 3 : 0;
         }
 
-        /** Update Next Bet button state */
         updateNextBetButton(name) {
             const button = document.querySelector(`.next-bet[data-punter="${name}"]`);
             const disabled = this.consecutiveLosses[name] >= 3;
@@ -223,7 +211,6 @@ document.addEventListener('DOMContentLoaded', () => {
             button.style.cursor = disabled ? 'not-allowed' : '';
         }
 
-        /** Extract bets from table */
         getBetsFromTable(name) {
             return Array.from(document.querySelectorAll(`#bets-${name} tr`)).map(row => ({
                 stake: parseFloat(row.querySelector('.stake').value) || 0,
@@ -233,7 +220,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }));
         }
 
-        /** Update profit/loss for a punter */
         async updateProfitLoss(name) {
             const bets = this.getBetsFromTable(name);
             const profitLoss = bets.reduce((total, bet) => {
@@ -245,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
             const profitLossDiv = punterDiv.querySelector('.profit-loss');
-            profitLossDiv.textContent = `Profit/Loss: €${profitLoss.toFixed(2)}`;
+            profitLossDiv.textContent = `Profit/Loss: $${profitLoss.toFixed(2)}`;
             profitLossDiv.style.color = profitLoss >= 0 ? 'green' : 'red';
 
             const progressBar = punterDiv.querySelector('.progress-bar');
@@ -254,41 +240,55 @@ document.addEventListener('DOMContentLoaded', () => {
             progressBar.style.backgroundColor = profitLoss >= 0 ? 'green' : 'red';
         }
 
-        /** Update overall profit/loss across all punters and history */
         async updateOverallProfit() {
-            const [bets, history] = await Promise.all([
-                this.supabaseClient.from('bets').select('stake, odds, outcome'),
-                this.supabaseClient.from('history').select('profitloss')
-            ]);
+            try {
+                const [bets, history] = await Promise.all([
+                    this.supabaseClient.from('bets').select('stake, odds, outcome'),
+                    this.supabaseClient.from('history').select('profitloss')
+                ]);
 
-            let profit = 0;
+                console.log('Bets data:', bets.data);
+                console.log('History data:', history.data);
 
-            if (bets.data) {
-                profit += bets.data.reduce((sum, bet) => {
-                    if (bet.outcome === 'W') return sum + (bet.stake * (bet.odds - 1));
-                    if (bet.outcome === 'w') return sum + (bet.stake * (bet.odds - 1)) / 2;
-                    if (bet.outcome === 'L') return sum - bet.stake;
-                    return sum;
-                }, 0);
+                let profit = 0;
+
+                if (bets.data && bets.data.length > 0) {
+                    profit += bets.data.reduce((sum, bet) => {
+                        if (bet.outcome === 'W') return sum + (bet.stake * (bet.odds - 1));
+                        if (bet.outcome === 'w') return sum + (bet.stake * (bet.odds - 1)) / 2;
+                        if (bet.outcome === 'L') return sum - bet.stake;
+                        return sum;
+                    }, 0);
+                }
+
+                if (history.data && history.data.length > 0) {
+                    profit += history.data.reduce((sum, record) => {
+                        const pl = Number(record.profitloss);
+                        return sum + (isNaN(pl) ? 0 : pl);
+                    }, 0);
+                }
+
+                console.log('Calculated overall profit:', profit);
+
+                const overallProfitDiv = document.getElementById('overall-profit');
+                overallProfitDiv.textContent = `Overall Profit/Loss: $${profit.toFixed(2)}`;
+                overallProfitDiv.style.color = profit >= 0 ? 'green' : 'red';
+            } catch (error) {
+                console.error('Error updating overall profit:', error);
+                const overallProfitDiv = document.getElementById('overall-profit');
+                overallProfitDiv.textContent = 'Overall Profit/Loss: Error';
             }
-
-            if (history.data) {
-                profit += history.data.reduce((sum, record) => sum + (Number(record.profitloss) || 0), 0);
-            }
-
-            const overallProfitDiv = document.getElementById('overall-profit');
-            overallProfitDiv.textContent = `Overall Profit/Loss: €${profit.toFixed(2)}`;
-            overallProfitDiv.style.color = profit >= 0 ? 'green' : 'red';
         }
 
-        /** Close a punter and save session data */
         async closePunter(name) {
             if (!confirm(`Close ${name}'s record?`)) return;
             const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
-            const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: €', ''));
+            const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
             const bets = this.getBetsFromTable(name);
-            const sessionStop = new Date().toISOString();
-            const sessionStart = this.sessionStartTimes[name];
+            const sessionStop = new Date().toISOString(); // Record stop time
+            const sessionStart = this.sessionStartTimes[name]; // Retrieve start time
+
+            console.log(`Attempting to close punter: ${name}, Profit/Loss: ${profitLoss}, Bets:`, bets);
 
             const { data: punter, error: punterError } = await this.supabaseClient
                 .from('punters')
@@ -303,51 +303,78 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (punter) {
-                const { error: insertError } = await this.supabaseClient.from('history').insert({
+                console.log('Punter ID:', punter.id);
+                const insertPayload = {
                     punter_id: punter.id,
-                    timestamp: sessionStop,
+                    timestamp: sessionStop, // Keep for compatibility
                     profitloss: profitLoss,
-                    bets: bets,
+                    bets: JSON.parse(JSON.stringify(bets)),
                     session_start: sessionStart,
                     session_stop: sessionStop
-                });
+                };
+                console.log('Inserting into history:', insertPayload);
+
+                const { data: historyData, error: insertError } = await this.supabaseClient
+                    .from('history')
+                    .insert([insertPayload])
+                    .select();
+
                 if (insertError) {
-                    console.error('Error saving history:', insertError);
+                    console.error('Error inserting history:', insertError.message, insertError.details);
                     alert('Failed to save history: ' + insertError.message);
                     return;
                 }
+
+                console.log('Successfully inserted into history:', historyData);
 
                 const { error: updateError } = await this.supabaseClient
                     .from('punters')
                     .update({ closed: true })
                     .eq('id', punter.id);
                 if (updateError) {
-                    console.error('Error closing punter:', updateError);
+                    console.error('Error marking punter as closed:', updateError);
                     alert('Failed to close punter: ' + updateError.message);
                     return;
                 }
 
-                await this.supabaseClient.from('bets').delete().eq('punter_id', punter.id);
+                const { error: betsDeleteError } = await this.supabaseClient
+                    .from('bets')
+                    .delete()
+                    .eq('punter_id', punter.id);
+                if (betsDeleteError) console.error('Error deleting bets:', betsDeleteError);
             }
 
             punterDiv.remove();
             delete this.consecutiveLosses[name];
-            delete this.sessionStartTimes[name];
+            delete this.sessionStartTimes[name]; // Clean up
             await this.updateOverallProfit();
         }
 
-        /** Clear all data from Supabase */
         async clearData() {
             if (!confirm('Clear all data? This cannot be undone.')) return;
-            await Promise.all([
-                this.supabaseClient.from('punters').delete().neq('name', ''),
-                this.supabaseClient.from('bets').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000'),
-                this.supabaseClient.from('history').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000')
-            ]);
-            location.reload();
+            try {
+                const [punterRes, betsRes, historyRes] = await Promise.all([
+                    this.supabaseClient.from('punters').delete().neq('name', '').select(),
+                    this.supabaseClient.from('bets').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000').select(),
+                    this.supabaseClient.from('history').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000').select()
+                ]);
+
+                console.log('Cleared punters:', punterRes.data);
+                console.log('Cleared bets:', betsRes.data);
+                console.log('Cleared history:', historyRes.data);
+
+                if (punterRes.error) throw punterRes.error;
+                if (betsRes.error) throw betsRes.error;
+                if (historyRes.error) throw historyRes.error;
+
+                location.reload();
+            } catch (error) {
+                console.error('Error clearing data:', error.message, error.code);
+                console.error('Full error details:', JSON.stringify(error));
+                alert('Failed to clear data: ' + error.message);
+            }
         }
 
-        /** Toggle layout of punter sections */
         toggleLayout() {
             const container = document.getElementById('punters-container');
             const button = document.getElementById('change-view');
@@ -359,7 +386,6 @@ document.addEventListener('DOMContentLoaded', () => {
             button.textContent = `Change View (${layouts[nextIndex].replace('-column', '')})`;
         }
 
-        /** Add a new bet row */
         addNextBet(name) {
             if (this.consecutiveLosses[name] >= 3) {
                 alert(`${name} has 3 consecutive losses. Please close the session.`);
@@ -374,7 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
             row.querySelector('.delete-bet').addEventListener('click', () => this.deleteBet(name, Array.from(tbody.children).indexOf(row)));
         }
 
-        /** Delete a bet row */
         async deleteBet(name, index) {
             const tbody = document.getElementById(`bets-${name}`);
             if (tbody.children.length === 1) {
@@ -390,56 +415,68 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateOverallProfit();
         }
 
-        /** Load data for dashboard */
         async loadDashboardData() {
-            const { data: punters } = await this.supabaseClient.from('punters').select('id, name');
-            const { data: history } = await this.supabaseClient
-                .from('history')
-                .select('punter_id, profitloss, timestamp, bets, session_start, session_stop')
-                .order('timestamp', { ascending: false });
-            const { data: bets } = await this.supabaseClient.from('bets').select('punter_id, stake, odds, outcome');
+            try {
+                const { data: punters, error: punterError } = await this.supabaseClient
+                    .from('punters')
+                    .select('id, name');
+                if (punterError) throw punterError;
 
-            const punterStats = {};
-            punters.forEach(punter => {
-                punterStats[punter.id] = {
-                    name: punter.name,
-                    totalProfitLoss: 0,
-                    wins: 0,
-                    losses: 0,
-                    activeProfitLoss: 0,
-                    sessions: []
-                };
-            });
+                const { data: history, error: historyError } = await this.supabaseClient
+                    .from('history')
+                    .select('punter_id, profitloss, timestamp, bets, session_start, session_stop')
+                    .order('timestamp', { ascending: false });
+                if (historyError) throw historyError;
 
-            history.forEach(record => {
-                const stats = punterStats[record.punter_id];
-                if (stats) {
-                    stats.totalProfitLoss += record.profitloss;
-                    if (record.profitloss > 0) stats.wins++;
-                    else if (record.profitloss < 0) stats.losses++;
-                    stats.sessions.push({
-                        profitloss: record.profitloss,
-                        timestamp: record.timestamp,
-                        bets: record.bets || [],
-                        session_start: record.session_start,
-                        session_stop: record.session_stop
-                    });
-                }
-            });
+                const { data: bets, error: betsError } = await this.supabaseClient
+                    .from('bets')
+                    .select('punter_id, stake, odds, outcome');
+                if (betsError) throw betsError;
 
-            bets.forEach(bet => {
-                const stats = punterStats[bet.punter_id];
-                if (stats) {
-                    if (bet.outcome === 'W') stats.activeProfitLoss += bet.stake * (bet.odds - 1);
-                    else if (bet.outcome === 'w') stats.activeProfitLoss += (bet.stake * (bet.odds - 1)) / 2;
-                    else if (bet.outcome === 'L') stats.activeProfitLoss -= bet.stake;
-                }
-            });
+                const punterStats = {};
+                punters.forEach(punter => {
+                    punterStats[punter.id] = {
+                        name: punter.name,
+                        totalProfitLoss: 0,
+                        wins: 0,
+                        losses: 0,
+                        activeProfitLoss: 0,
+                        sessions: []
+                    };
+                });
 
-            return Object.values(punterStats);
+                history.forEach(record => {
+                    const stats = punterStats[record.punter_id];
+                    if (stats) {
+                        stats.totalProfitLoss += record.profitloss;
+                        if (record.profitloss > 0) stats.wins++;
+                        else if (record.profitloss < 0) stats.losses++;
+                        stats.sessions.push({ 
+                            profitloss: record.profitloss, 
+                            timestamp: record.timestamp, 
+                            bets: record.bets || [],
+                            session_start: record.session_start,
+                            session_stop: record.session_stop
+                        });
+                    }
+                });
+
+                bets.forEach(bet => {
+                    const stats = punterStats[bet.punter_id];
+                    if (stats) {
+                        if (bet.outcome === 'W') stats.activeProfitLoss += bet.stake * (bet.odds - 1);
+                        else if (bet.outcome === 'w') stats.activeProfitLoss += (bet.stake * (bet.odds - 1)) / 2;
+                        else if (bet.outcome === 'L') stats.activeProfitLoss -= bet.stake;
+                    }
+                });
+
+                return Object.values(punterStats);
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                return [];
+            }
         }
 
-        /** Display the dashboard modal */
         async showDashboard() {
             const stats = await this.loadDashboardData();
             const container = document.createElement('div');
@@ -472,10 +509,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <tr>
                         <td style="padding: 8px; border: 1px solid #ddd;">${stat.name}</td>
                         <td style="padding: 8px; border: 1px solid #ddd; color: ${stat.totalProfitLoss >= 0 ? 'green' : 'red'}">
-                            €${stat.totalProfitLoss.toFixed(2)}
+                            $${stat.totalProfitLoss.toFixed(2)}
                         </td>
                         <td style="padding: 8px; border: 1px solid #ddd; color: ${stat.activeProfitLoss >= 0 ? 'green' : 'red'}">
-                            €${stat.activeProfitLoss.toFixed(2)}
+                            $${stat.activeProfitLoss.toFixed(2)}
                         </td>
                         <td style="padding: 8px; border: 1px solid #ddd;">${stat.wins}</td>
                         <td style="padding: 8px; border: 1px solid #ddd;">${stat.losses}</td>
@@ -486,7 +523,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             });
 
-            html += `</tbody></table>`;
+            html += `
+                    </tbody>
+                </table>
+            `;
             container.innerHTML = html;
             document.body.appendChild(container);
 
@@ -519,7 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             detailsHtml += `
                                 <div style="margin-bottom: 20px;">
                                     <h4>Session Start: ${startFormatted} - Stop: ${stopFormatted}</h4>
-                                    <p>Profit/Loss: <span style="color: ${session.profitloss >= 0 ? 'green' : 'red'}">€${session.profitloss.toFixed(2)}</span></p>
+                                    <p>Profit/Loss: <span style="color: ${session.profitloss >= 0 ? 'green' : 'red'}">$${session.profitloss.toFixed(2)}</span></p>
                                     <table style="width: 100%; border-collapse: collapse;">
                                         <thead>
                                             <tr style="background: #f2f2f2;">
@@ -537,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 session.bets.forEach(bet => {
                                     detailsHtml += `
                                         <tr>
-                                            <td style="padding: 8px; border: 1px solid #ddd;">€${bet.stake.toFixed(2)}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd;">$${bet.stake.toFixed(2)}</td>
                                             <td style="padding: 8px; border: 1px solid #ddd;">${bet.game || 'N/A'}</td>
                                             <td style="padding: 8px; border: 1px solid #ddd;">${bet.odds.toFixed(2)}</td>
                                             <td style="padding: 8px; border: 1px solid #ddd;">${bet.outcome || '--'}</td>
@@ -545,7 +585,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                     `;
                                 });
                             }
-                            detailsHtml += `</tbody></table></div>`;
+                            detailsHtml += `
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `;
                         });
                     }
                     detailsModal.innerHTML = detailsHtml;
