@@ -3,37 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Betting Assistant</title>
+    <title>Betting Tracker</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
+    <script src="script.js" defer></script>
 </head>
 <body>
-    <h1>Betting Assistant</h1>
+    <h1>Betting Tracker</h1>
     <div id="overall-profit">Overall Profit/Loss: $0.00</div>
-    
-    <div class="controls">
+    <div id="controls">
         <button id="add-punter">Add Punter</button>
         <button id="view-records">View Records</button>
         <button id="clear-data">Clear Data</button>
-        <button id="change-view">Change View (2-Column)</button>
-    </div>
-
-    <div class="date-profit">
+        <button id="change-view">Change View (two)</button>
+        <button id="view-dashboard">View Dashboard</button>
         <input type="date" id="date-picker">
         <button id="check-date-profit">Check Date Profit</button>
         <div id="date-profit-result"></div>
     </div>
-
     <div id="punters-container" class="two-column"></div>
-
     <div id="records-modal" class="modal">
         <div class="modal-content">
             <span id="close-modal">&times;</span>
-            <h2>Betting Records</h2>
             <div id="records-content"></div>
         </div>
     </div>
-
-    <script src="script.js"></script>
 </body>
 </html>
