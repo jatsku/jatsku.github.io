@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('add-punter').addEventListener('click', () => this.handleAddPunter());
             document.getElementById('clear-data').addEventListener('click', () => this.clearData());
             document.getElementById('change-view').addEventListener('click', () => this.toggleLayout());
-            document.getElementById('check-date-profit').addEventListener('click', () => this.checkDateProfit());
             document.getElementById('view-dashboard').addEventListener('click', () => this.showDashboard());
         }
 
@@ -372,35 +371,6 @@ document.addEventListener('DOMContentLoaded', () => {
             container.classList.remove(...layouts);
             container.classList.add(layouts[nextIndex]);
             button.textContent = `Change View (${layouts[nextIndex].replace('-column', '')})`;
-        }
-
-        async checkDateProfit() {
-            const dateInput = document.getElementById('date-picker').value;
-            if (!dateInput) return alert('Please select a date');
-
-            // Convert local date (assumed UTC+2) to UTC for database query
-            const localDate = new Date(dateInput); // Browser interprets as local time (e.g., UTC+2)
-            const utcStart = new Date(localDate.getTime() - (2 * 60 * 60 * 1000)); // Subtract 2 hours to get UTC
-            const utcEnd = new Date(utcStart);
-            utcEnd.setUTCHours(23, 59, 59, 999); // End of day in UTC
-
-            const startISO = utcStart.toISOString(); // e.g., 2025-04-01T00:00:00.000Z
-            const endISO = utcEnd.toISOString();     // e.g., 2025-04-01T23:59:59.999Z
-
-            const { data, error } = await this.supabaseClient
-                .from('history')
-                .select('profitloss')
-                .gte('timestamp', startISO)
-                .lte('timestamp', endISO);
-
-            if (error) {
-                console.error('Error checking date profit:', error);
-                alert('Failed to fetch date profit: ' + error.message);
-                return;
-            }
-
-            const total = data.reduce((sum, record) => sum + record.profitloss, 0);
-            document.getElementById('date-profit-result').innerHTML = `Profit/Loss on ${dateInput}: $${total.toFixed(2)}`;
         }
 
         addNextBet(name) {
