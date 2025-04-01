@@ -208,9 +208,9 @@ document.addEventListener('DOMContentLoaded', () => {
         getBetsFromTable(name) {
             return Array.from(document.querySelectorAll(`#bets-${name} tr`)).map(row => ({
                 stake: parseFloat(row.querySelector('.stake').value) || 0,
-                game: row.querySelector('.game').value,
+                game: row.querySelector('.game').value || null,
                 odds: parseFloat(row.querySelector('.odds').value) || 0,
-                outcome: row.querySelector('.outcome').value
+                outcome: row.querySelector('.outcome').value || null
             }));
         }
 
@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm(`Close ${name}'s record?`)) return;
             const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
             const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
-            const bets = this.getBetsFromTable(name); // Get bets to save with session
+            const bets = this.getBetsFromTable(name);
 
             console.log(`Attempting to close punter: ${name}, Profit/Loss: ${profitLoss}, Bets:`, bets);
 
@@ -300,17 +300,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     punter_id: punter.id,
                     timestamp: new Date().toISOString(),
                     profitloss: profitLoss,
-                    bets: bets // Save bets as JSON
+                    bets: JSON.parse(JSON.stringify(bets)) // Ensure clean JSON
                 };
                 console.log('Inserting into history:', insertPayload);
 
                 const { data: historyData, error: insertError } = await this.supabaseClient
                     .from('history')
-                    .insert(insertPayload)
+                    .insert([insertPayload]) // Wrap in array for Supabase
                     .select();
 
                 if (insertError) {
-                    console.error('Error inserting history:', insertError);
+                    console.error('Error inserting history:', insertError.message, insertError.details);
                     alert('Failed to save history: ' + insertError.message);
                     return;
                 }
@@ -443,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         stats.sessions.push({ 
                             profitloss: record.profitloss, 
                             timestamp: record.timestamp, 
-                            bets: record.bets || [] // Include bets, default to empty array if null
+                            bets: record.bets || []
                         });
                     }
                 });
