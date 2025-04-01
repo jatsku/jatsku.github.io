@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const { data: history, error: historyError } = await this.supabaseClient
                     .from('history')
                     .select('punter_id, profitloss, timestamp')
-                    .order('timestamp', { ascending: false }); // Latest sessions first
+                    .order('timestamp', { ascending: false });
                 if (historyError) throw historyError;
 
                 const { data: bets, error: betsError } = await this.supabaseClient
@@ -428,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         wins: 0,
                         losses: 0,
                         activeProfitLoss: 0,
-                        sessions: [] // Store session history for drill-down
+                        sessions: []
                     };
                 });
 
@@ -513,7 +513,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.getElementById('close-dashboard').addEventListener('click', () => container.remove());
 
-            // Add event listeners for "Details" buttons
             document.querySelectorAll('.show-details').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const name = btn.dataset.name;
@@ -540,9 +539,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         detailsHtml += `<tr><td colspan="2" style="padding: 8px; border: 1px solid #ddd;">No sessions yet</td></tr>`;
                     } else {
                         stat.sessions.forEach(session => {
+                            const date = new Date(session.timestamp);
+                            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                            const formattedDate = `${dayNames[date.getDay()]}, ${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
                             detailsHtml += `
                                 <tr>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${new Date(session.timestamp).toLocaleString()}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${formattedDate}</td>
                                     <td style="padding: 8px; border: 1px solid #ddd; color: ${session.profitloss >= 0 ? 'green' : 'red'}">
                                         $${session.profitloss.toFixed(2)}
                                     </td>
