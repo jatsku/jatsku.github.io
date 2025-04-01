@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
         constructor() {
             this.supabaseClient = supabaseClient;
             this.consecutiveLosses = {};
-            this.sessionStartTimes = {}; // Store session start times
+            this.sessionStartTimes = {};
             this.initializeEventListeners();
             this.loadInitialData();
         }
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const punter of punters) {
                 const bets = await this.fetchBets(punter.id);
                 this.consecutiveLosses[punter.name] = this.calculateConsecutiveLosses(bets);
-                this.sessionStartTimes[punter.name] = new Date().toISOString(); // Set start time for active punters
+                this.sessionStartTimes[punter.name] = new Date().toISOString();
                 this.renderPunter(punter.name, bets);
             }
         }
@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const sessionStart = new Date().toISOString(); // Record start time
+            const sessionStart = new Date().toISOString();
 
             if (existingPunter) {
                 if (!existingPunter.closed) {
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 await this.supabaseClient.from('bets').delete().eq('punter_id', existingPunter.id);
                 this.consecutiveLosses[name] = 0;
-                this.sessionStartTimes[name] = sessionStart; // Store start time
+                this.sessionStartTimes[name] = sessionStart;
                 this.renderPunter(name, []);
             } else {
                 const { error: insertError } = await this.supabaseClient.from('punters').insert({ name, closed: false });
@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 this.consecutiveLosses[name] = 0;
-                this.sessionStartTimes[name] = sessionStart; // Store start time
+                this.sessionStartTimes[name] = sessionStart;
                 this.renderPunter(name);
             }
             this.updateOverallProfit();
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h2>${name}</h2>
                     <button class="close-punter">Close</button>
                 </div>
-                <div class="profit-loss">Profit/Loss: $0.00</div>
+                <div class="profit-loss">Profit/Loss: €0.00</div>
                 <div class="progress-container"><div class="progress-bar"></div></div>
                 <table class="punter-table">
                     <thead>
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
             const profitLossDiv = punterDiv.querySelector('.profit-loss');
-            profitLossDiv.textContent = `Profit/Loss: $${profitLoss.toFixed(2)}`;
+            profitLossDiv.textContent = `Profit/Loss: €${profitLoss.toFixed(2)}`;
             profitLossDiv.style.color = profitLoss >= 0 ? 'green' : 'red';
 
             const progressBar = punterDiv.querySelector('.progress-bar');
@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Calculated overall profit:', profit);
 
                 const overallProfitDiv = document.getElementById('overall-profit');
-                overallProfitDiv.textContent = `Overall Profit/Loss: $${profit.toFixed(2)}`;
+                overallProfitDiv.textContent = `Overall Profit/Loss: €${profit.toFixed(2)}`;
                 overallProfitDiv.style.color = profit >= 0 ? 'green' : 'red';
             } catch (error) {
                 console.error('Error updating overall profit:', error);
@@ -283,10 +283,10 @@ document.addEventListener('DOMContentLoaded', () => {
         async closePunter(name) {
             if (!confirm(`Close ${name}'s record?`)) return;
             const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
-            const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
+            const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: €', ''));
             const bets = this.getBetsFromTable(name);
-            const sessionStop = new Date().toISOString(); // Record stop time
-            const sessionStart = this.sessionStartTimes[name]; // Retrieve start time
+            const sessionStop = new Date().toISOString();
+            const sessionStart = this.sessionStartTimes[name];
 
             console.log(`Attempting to close punter: ${name}, Profit/Loss: ${profitLoss}, Bets:`, bets);
 
@@ -306,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Punter ID:', punter.id);
                 const insertPayload = {
                     punter_id: punter.id,
-                    timestamp: sessionStop, // Keep for compatibility
+                    timestamp: sessionStop,
                     profitloss: profitLoss,
                     bets: JSON.parse(JSON.stringify(bets)),
                     session_start: sessionStart,
@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             punterDiv.remove();
             delete this.consecutiveLosses[name];
-            delete this.sessionStartTimes[name]; // Clean up
+            delete this.sessionStartTimes[name];
             await this.updateOverallProfit();
         }
 
@@ -509,10 +509,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <tr>
                         <td style="padding: 8px; border: 1px solid #ddd;">${stat.name}</td>
                         <td style="padding: 8px; border: 1px solid #ddd; color: ${stat.totalProfitLoss >= 0 ? 'green' : 'red'}">
-                            $${stat.totalProfitLoss.toFixed(2)}
+                            €${stat.totalProfitLoss.toFixed(2)}
                         </td>
                         <td style="padding: 8px; border: 1px solid #ddd; color: ${stat.activeProfitLoss >= 0 ? 'green' : 'red'}">
-                            $${stat.activeProfitLoss.toFixed(2)}
+                            €${stat.activeProfitLoss.toFixed(2)}
                         </td>
                         <td style="padding: 8px; border: 1px solid #ddd;">${stat.wins}</td>
                         <td style="padding: 8px; border: 1px solid #ddd;">${stat.losses}</td>
@@ -559,7 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             detailsHtml += `
                                 <div style="margin-bottom: 20px;">
                                     <h4>Session Start: ${startFormatted} - Stop: ${stopFormatted}</h4>
-                                    <p>Profit/Loss: <span style="color: ${session.profitloss >= 0 ? 'green' : 'red'}">$${session.profitloss.toFixed(2)}</span></p>
+                                    <p>Profit/Loss: <span style="color: ${session.profitloss >= 0 ? 'green' : 'red'}">€${session.profitloss.toFixed(2)}</span></p>
                                     <table style="width: 100%; border-collapse: collapse;">
                                         <thead>
                                             <tr style="background: #f2f2f2;">
@@ -577,7 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 session.bets.forEach(bet => {
                                     detailsHtml += `
                                         <tr>
-                                            <td style="padding: 8px; border: 1px solid #ddd;">$${bet.stake.toFixed(2)}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd;">€${bet.stake.toFixed(2)}</td>
                                             <td style="padding: 8px; border: 1px solid #ddd;">${bet.game || 'N/A'}</td>
                                             <td style="padding: 8px; border: 1px solid #ddd;">${bet.odds.toFixed(2)}</td>
                                             <td style="padding: 8px; border: 1px solid #ddd;">${bet.outcome || '--'}</td>
