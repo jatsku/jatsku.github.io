@@ -192,9 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         calculateConsecutiveLosses(bets) {
-            return bets.reduceRight((count, bet) => 
-                bet.outcome === 'L' ? count + 1 : 
-                (bet.outcome === 'W' || bet.outcome === 'w' || bet.outcome === 'D') ? 0 : count, 0);
+            if (bets.length < 3) return bets.filter(bet => bet.outcome === 'L').length;
+            const lastThreeBets = bets.slice(-3); // Take the last 3 bets
+            return lastThreeBets.every(bet => bet.outcome === 'L') ? 3 : 0;
         }
 
         updateNextBetButton(name) {
@@ -375,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         addNextBet(name) {
             if (this.consecutiveLosses[name] >= 3) {
-                alert(`${name} has 3 consecutive losses. Please close or check dashboard.`);
+                alert(`${name} has 3 consecutive losses. Please close the session.`);
                 return;
             }
             const tbody = document.getElementById(`bets-${name}`);
