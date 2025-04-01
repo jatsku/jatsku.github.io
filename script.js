@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const progressBar = punterDiv.querySelector('.progress-bar');
             const progress = Math.min(Math.abs(profitLoss) / 1000 * 100, 100);
             progressBar.style.width = `${progress}%`;
-            progressBar.style.backgroundColor = profitLoss >= 0 ? '#4CAF50' : '#f44336';
+            progressBar.style.backgroundColor = profitLoss >= 0 ? 'green' : 'red';
         }
 
         async updateOverallProfit() {
@@ -411,9 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('Clear all data? This cannot be undone.')) return;
             try {
                 const [punterRes, betsRes, historyRes] = await Promise.all([
-                    this.supabaseClient.from('punters').delete().is('id', null).neq('id', null).select(),
-                    this.supabaseClient.from('bets').delete().is('id', null).neq('id', null).select(),
-                    this.supabaseClient.from('history').delete().is('id', null).neq('id', null).select()
+                    this.supabaseClient.from('punters').delete().select(),
+                    this.supabaseClient.from('bets').delete().select(),
+                    this.supabaseClient.from('history').delete().select()
                 ]);
 
                 console.log('Cleared punters:', punterRes.data);
