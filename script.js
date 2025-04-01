@@ -411,7 +411,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const { data: history, error: historyError } = await this.supabaseClient
                     .from('history')
-                    .select('punter_id, profitloss');
+                    .select('punter_id, profitloss, timestamp')
+                    .order('timestamp', { ascending: false }); // Latest sessions first
                 if (historyError) throw historyError;
 
                 const { data: bets, error: betsError } = await this.supabaseClient
@@ -424,9 +425,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     punterStats[punter.id] = {
                         name: punter.name,
                         totalProfitLoss: 0,
-                        wins: 0, // Session wins (profitloss > 0)
-                        losses: 0, // Session losses (profitloss < 0)
-                        activeProfitLoss: 0
+                        wins: 0,
+                        losses: 0,
+                        activeProfitLoss: 0,
+                        sessions: [] // Store session history for drill-down
                     };
                 });
 
@@ -436,6 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         stats.totalProfitLoss += record.profitloss;
                         if (record.profitloss > 0) stats.wins++;
                         else if (record.profitloss < 0) stats.losses++;
+                        stats.sessions.push({ profitloss: record.profitloss, timestamp: record.timestamp });
                     }
                 });
 
@@ -476,6 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <th style="padding: 8px; border: 1px solid #ddd;">Active P/L</th>
                             <th style="padding: 8px; border: 1px solid #ddd;">Session Wins</th>
                             <th style="padding: 8px; border: 1px solid #ddd;">Session Losses</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Details</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -493,6 +497,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         </td>
                         <td style="padding: 8px; border: 1px solid #ddd;">${stat.wins}</td>
                         <td style="padding: 8px; border: 1px solid #ddd;">${stat.losses}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">
+                            <button class="show-details" data-name="${stat.name}">Details</button>
+                        </td>
                     </tr>
                 `;
             });
@@ -505,6 +512,53 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(container);
 
             document.getElementById('close-dashboard').addEventListener('click', () => container.remove());
+
+            // Add event listeners for "Details" buttons
+            document.querySelectorAll('.show-details').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const name = btn.dataset.name;
+                    const stat = stats.find(s => s.name === name);
+                    const detailsModal = document.createElement('div');
+                    detailsModal.style.cssText = `
+                        position: fixed; top: 15%; left: 15%; width: 70%; max-height: 70%; 
+                        background: white; border: 1px solid #ccc; padding: 20px; overflow-y: auto;
+                        z-index: 1001;
+                    `;
+                    let detailsHtml = `
+                        <h3>${name}'s Session History</h3>
+                        <button id="close-details" style="float: right;">Close</button>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f2f2f2;">
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Date</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd;">Profit/Loss</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    if (stat.sessions.length === 0) {
+                        detailsHtml += `<tr><td colspan="2" style="padding: 8px; border: 1px solid #ddd;">No sessions yet</td></tr>`;
+                    } else {
+                        stat.sessions.forEach(session => {
+                            detailsHtml += `
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${new Date(session.timestamp).toLocaleString()}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd; color: ${session.profitloss >= 0 ? 'green' : 'red'}">
+                                        $${session.profitloss.toFixed(2)}
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+                    detailsHtml += `
+                            </tbody>
+                        </table>
+                    `;
+                    detailsModal.innerHTML = detailsHtml;
+                    document.body.appendChild(detailsModal);
+                    document.getElementById('close-details').addEventListener('click', () => detailsModal.remove());
+                });
+            });
         }
     }
 
