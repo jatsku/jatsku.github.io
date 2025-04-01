@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('change-view').addEventListener('click', () => this.toggleLayout());
             document.getElementById('close-modal').addEventListener('click', () => this.toggleModal(false));
             document.getElementById('check-date-profit').addEventListener('click', () => this.checkDateProfit());
+            document.getElementById('view-dashboard').addEventListener('click', () => this.showDashboard());
             window.addEventListener('click', (e) => {
                 if (e.target === document.getElementById('records-modal')) this.toggleModal(false);
             });
@@ -313,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     .select();
 
                 if (insertError) {
-                    console.error('Error inserting history:', insertError, 'Full error:', JSON.stringify(insertError));
+                    console.error('Error inserting history:', insertError);
                     alert('Failed to save history: ' + insertError.message);
                     return;
                 }
@@ -335,8 +336,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     .delete()
                     .eq('punter_id', punter.id);
                 if (betsDeleteError) console.error('Error deleting bets:', betsDeleteError);
-            } else {
-                console.error('No punter found with name:', name);
             }
 
             punterDiv.remove();
@@ -357,7 +356,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             console.log('History data in showRecords:', history);
 
-            // Fetch punter names separately
             const punterIds = [...new Set(history.map(record => record.punter_id))];
             const { data: punters, error: punterError } = await this.supabaseClient
                 .from('punters')
@@ -408,29 +406,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async clearData() {
-    if (!confirm('Clear all data? This cannot be undone.')) return;
-    try {
-        const [punterRes, betsRes, historyRes] = await Promise.all([
-            this.supabaseClient.from('punters').delete().neq('name', '').select(),
-            this.supabaseClient.from('bets').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000').select(),
-            this.supabaseClient.from('history').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000').select()
-        ]);
+            if (!confirm('Clear all data? This cannot be undone.')) return;
+            try {
+                const [punterRes, betsRes, historyRes] = await Promise.all([
+                    this.supabaseClient.from('punters').delete().neq('name', '').select(),
+                    this.supabaseClient.from('bets').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000').select(),
+                    this.supabaseClient.from('history').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000').select()
+                ]);
 
-        console.log('Cleared punters:', punterRes.data);
-        console.log('Cleared bets:', betsRes.data);
-        console.log('Cleared history:', historyRes.data);
+                console.log('Cleared punters:', punterRes.data);
+                console.log('Cleared bets:', betsRes.data);
+                console.log('Cleared history:', historyRes.data);
 
-        if (punterRes.error) throw punterRes.error;
-        if (betsRes.error) throw betsRes.error;
-        if (historyRes.error) throw historyRes.error;
+                if (punterRes.error) throw punterRes.error;
+                if (betsRes.error) throw betsRes.error;
+                if (historyRes.error) throw historyRes.error;
 
-        location.reload();
-    } catch (error) {
-        console.error('Error clearing data:', error.message, error.code);
-        console.error('Full error details:', JSON.stringify(error));
-        alert('Failed to clear data: ' + error.message);
-    }
-}
+                location.reload();
+            } catch (error) {
+                console.error('Error clearing data:', error.message, error.code);
+                console.error('Full error details:', JSON.stringify(error));
+                alert('Failed to clear data: ' + error.message);
+            }
+        }
+
         toggleLayout() {
             const container = document.getElementById('punters-container');
             const button = document.getElementById('change-view');
@@ -491,6 +490,112 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateNextBetButton(name);
             this.updateProfitLoss(name);
             this.updateOverallProfit();
+        }
+
+        // New Dashboard Methods
+        async loadDashboardData() {
+            try {
+                const { data: punters, error: punterError } = await this.supabaseClient
+                    .from('punters')
+                    .select('id, name');
+                if (punterError) throw punterError;
+
+                const { data: history, error: historyError } = await this.supabaseClient
+                    .from('history')
+                    .select('punter_id, profitloss, timestamp');
+                if (historyError) throw historyError;
+
+                const { data: bets, error: betsError } = await this.supabaseClient
+                    .from('bets')
+                    .select('punter_id, stake, odds, outcome');
+                if (betsError) throw betsError;
+
+                const punterStats = {};
+                punters.forEach(punter => {
+                    punterStats[punter.id] = {
+                        name: punter.name,
+                        totalProfitLoss: 0,
+                        wins: 0,
+                        losses: 0,
+                        activeProfitLoss: 0
+                    };
+                });
+
+                history.forEach(record => {
+                    const stats = punterStats[record.punter_id];
+                    if (stats) {
+                        stats.totalProfitLoss += record.profitloss;
+                    }
+                });
+
+                bets.forEach(bet => {
+                    const stats = punterStats[bet.punter_id];
+                    if (stats) {
+                        if (bet.outcome === 'W') stats.activeProfitLoss += bet.stake * (bet.odds - 1);
+                        else if (bet.outcome === 'w') stats.activeProfitLoss += (bet.stake * (bet.odds - 1)) / 2;
+                        else if (bet.outcome === 'L') stats.activeProfitLoss -= bet.stake;
+                        if (bet.outcome === 'W' || bet.outcome === 'w') stats.wins++;
+                        else if (bet.outcome === 'L') stats.losses++;
+                    }
+                });
+
+                return Object.values(punterStats);
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                return [];
+            }
+        }
+
+        async showDashboard() {
+            const stats = await this.loadDashboardData();
+            const container = document.createElement('div');
+            container.id = 'dashboard-modal';
+            container.style.cssText = `
+                position: fixed; top: 10%; left: 10%; width: 80%; max-height: 80%; 
+                background: white; border: 1px solid #ccc; padding: 20px; overflow-y: auto;
+                z-index: 1000;
+            `;
+
+            let html = `
+                <h2>Profit/Loss Dashboard</h2>
+                <button id="close-dashboard" style="float: right;">Close</button>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f2f2f2;">
+                            <th style="padding: 8px; border: 1px solid #ddd;">Punter</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Total P/L</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Active P/L</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Wins</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Losses</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            stats.forEach(stat => {
+                html += `
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stat.name}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd; color: ${stat.totalProfitLoss >= 0 ? 'green' : 'red'}">
+                            $${stat.totalProfitLoss.toFixed(2)}
+                        </td>
+                        <td style="padding: 8px; border: 1px solid #ddd; color: ${stat.activeProfitLoss >= 0 ? 'green' : 'red'}">
+                            $${stat.activeProfitLoss.toFixed(2)}
+                        </td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stat.wins}</td>
+                        <td style="padding: 8px; border: 1px solid #ddd;">${stat.losses}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = html;
+            document.body.appendChild(container);
+
+            document.getElementById('close-dashboard').addEventListener('click', () => container.remove());
         }
     }
 
