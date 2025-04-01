@@ -14,15 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         initializeEventListeners() {
             document.getElementById('add-punter').addEventListener('click', () => this.handleAddPunter());
-            document.getElementById('view-records').addEventListener('click', () => this.showRecords());
             document.getElementById('clear-data').addEventListener('click', () => this.clearData());
             document.getElementById('change-view').addEventListener('click', () => this.toggleLayout());
-            document.getElementById('close-modal').addEventListener('click', () => this.toggleModal(false));
             document.getElementById('check-date-profit').addEventListener('click', () => this.checkDateProfit());
             document.getElementById('view-dashboard').addEventListener('click', () => this.showDashboard());
-            window.addEventListener('click', (e) => {
-                if (e.target === document.getElementById('records-modal')) this.toggleModal(false);
-            });
         }
 
         async loadInitialData() {
@@ -343,68 +338,6 @@ document.addEventListener('DOMContentLoaded', () => {
             await this.updateOverallProfit();
         }
 
-        async showRecords() {
-            const { data: history, error } = await this.supabaseClient
-                .from('history')
-                .select('punter_id, profitloss, timestamp')
-                .order('timestamp', { ascending: false });
-
-            if (error) {
-                console.error('Show records error:', error.message, error.code);
-                alert('Failed to load records: ' + error.message);
-                return;
-            }
-            console.log('History data in showRecords:', history);
-
-            const punterIds = [...new Set(history.map(record => record.punter_id))];
-            const { data: punters, error: punterError } = await this.supabaseClient
-                .from('punters')
-                .select('id, name')
-                .in('id', punterIds);
-
-            if (punterError) {
-                console.error('Error fetching punters:', punterError);
-                alert('Failed to fetch punter names: ' + punterError.message);
-                return;
-            }
-
-            const punterMap = {};
-            punters.forEach(p => (punterMap[p.id] = p.name));
-
-            const grouped = {};
-            history.forEach(record => {
-                const name = punterMap[record.punter_id] || 'Unknown';
-                if (!grouped[name]) {
-                    grouped[name] = { profitLoss: 0, latest: null };
-                }
-                grouped[name].profitLoss += record.profitloss;
-                const date = new Date(record.timestamp);
-                if (!grouped[name].latest || date > grouped[name].latest) {
-                    grouped[name].latest = date;
-                }
-            });
-
-            let html = '<table><thead><tr><th>Punter</th><th>Latest Session</th><th>Total Profit/Loss</th></tr></thead><tbody>';
-            if (!Object.keys(grouped).length) {
-                html += '<tr><td colspan="3">No records</td></tr>';
-            } else {
-                Object.keys(grouped).sort().forEach(name => {
-                    const { profitLoss, latest } = grouped[name];
-                    html += `
-                        <tr>
-                            <td>${name}</td>
-                            <td>${latest.toLocaleString()}</td>
-                            <td style="color: ${profitLoss >= 0 ? 'green' : 'red'}">$${profitLoss.toFixed(2)}</td>
-                        </tr>
-                    `;
-                });
-            }
-            html += '</tbody></table>';
-
-            document.getElementById('records-content').innerHTML = html;
-            this.toggleModal(true);
-        }
-
         async clearData() {
             if (!confirm('Clear all data? This cannot be undone.')) return;
             try {
@@ -442,30 +375,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async checkDateProfit() {
-            const date = document.getElementById('date-picker').value;
-            if (!date) return alert('Please select a date');
-            const start = `${date}T00:00:00Z`;
-            const end = `${date}T23:59:59Z`;
+            const dateInput = document.getElementById('date-picker').value;
+            if (!dateInput) return alert('Please select a date');
+
+            // Convert local date (assumed UTC+2) to UTC for database query
+            const localDate = new Date(dateInput); // Browser interprets as local time (e.g., UTC+2)
+            const utcStart = new Date(localDate.getTime() - (2 * 60 * 60 * 1000)); // Subtract 2 hours to get UTC
+            const utcEnd = new Date(utcStart);
+            utcEnd.setUTCHours(23, 59, 59, 999); // End of day in UTC
+
+            const startISO = utcStart.toISOString(); // e.g., 2025-04-01T00:00:00.000Z
+            const endISO = utcEnd.toISOString();     // e.g., 2025-04-01T23:59:59.999Z
+
             const { data, error } = await this.supabaseClient
                 .from('history')
                 .select('profitloss')
-                .gte('timestamp', start)
-                .lte('timestamp', end);
+                .gte('timestamp', startISO)
+                .lte('timestamp', endISO);
+
             if (error) {
                 console.error('Error checking date profit:', error);
+                alert('Failed to fetch date profit: ' + error.message);
                 return;
             }
-            const total = data.reduce((sum, record) => sum + record.profitloss, 0);
-            document.getElementById('date-profit-result').innerHTML = `Profit/Loss on ${date}: $${total.toFixed(2)}`;
-        }
 
-        toggleModal(show) {
-            document.getElementById('records-modal').style.display = show ? 'block' : 'none';
+            const total = data.reduce((sum, record) => sum + record.profitloss, 0);
+            document.getElementById('date-profit-result').innerHTML = `Profit/Loss on ${dateInput}: $${total.toFixed(2)}`;
         }
 
         addNextBet(name) {
             if (this.consecutiveLosses[name] >= 3) {
-                alert(`${name} has 3 consecutive losses. Please close or view records.`);
+                alert(`${name} has 3 consecutive losses. Please close or check dashboard.`);
                 return;
             }
             const tbody = document.getElementById(`bets-${name}`);
@@ -492,7 +432,6 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateOverallProfit();
         }
 
-        // New Dashboard Methods
         async loadDashboardData() {
             try {
                 const { data: punters, error: punterError } = await this.supabaseClient
