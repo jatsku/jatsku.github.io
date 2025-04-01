@@ -1,25 +1,40 @@
 body {
     font-family: Arial, sans-serif;
     margin: 20px;
+    padding-top: 60px; /* Add padding to prevent content from overlapping fixed top bar */
 }
 
 h1 {
     text-align: center;
 }
 
-#overall-profit {
-    text-align: center;
-    font-size: 1.2em;
-    margin: 10px 0;
+#top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000; /* Ensure it stays above other content */
+    background: #fff; /* Add background to prevent transparency */
+    padding: 10px 0;
 }
 
-#controls {
-    margin-bottom: 20px;
+#button-container {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%); /* Center the buttons horizontally */
     text-align: center;
 }
 
-#controls button, #controls input {
+#button-container button {
     margin: 5px;
+}
+
+#overall-profit {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    font-size: 1em; /* Smaller than original 1.2em */
+    color: black; /* Default color, will be overridden by JS */
 }
 
 .punter-section {
