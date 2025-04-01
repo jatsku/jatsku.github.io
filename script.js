@@ -411,9 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!confirm('Clear all data? This cannot be undone.')) return;
     try {
         const [punterRes, betsRes, historyRes] = await Promise.all([
-            this.supabaseClient.from('punters').delete().select(),
-            this.supabaseClient.from('bets').delete().select(),
-            this.supabaseClient.from('history').delete().select()
+            this.supabaseClient.from('punters').delete().neq('name', '').select(), // Matches all non-empty names
+            this.supabaseClient.from('bets').delete().neq('punter_id', null).select(), // Matches all non-null punter_ids
+            this.supabaseClient.from('history').delete().neq('punter_id', null).select() // Matches all non-null punter_ids
         ]);
 
         console.log('Cleared punters:', punterRes.data);
@@ -427,10 +427,10 @@ document.addEventListener('DOMContentLoaded', () => {
         location.reload();
     } catch (error) {
         console.error('Error clearing data:', error.message, error.code);
+        console.error('Full error details:', JSON.stringify(error));
         alert('Failed to clear data: ' + error.message);
     }
 }
-
         toggleLayout() {
             const container = document.getElementById('punters-container');
             const button = document.getElementById('change-view');
