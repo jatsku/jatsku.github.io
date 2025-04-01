@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         calculateConsecutiveLosses(bets) {
             if (bets.length < 3) return bets.filter(bet => bet.outcome === 'L').length;
-            const lastThreeBets = bets.slice(-3); // Take the last 3 bets
+            const lastThreeBets = bets.slice(-3);
             return lastThreeBets.every(bet => bet.outcome === 'L') ? 3 : 0;
         }
 
@@ -278,8 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm(`Close ${name}'s record?`)) return;
             const punterDiv = document.querySelector(`.punter-section[data-punter="${name}"]`);
             const profitLoss = parseFloat(punterDiv.querySelector('.profit-loss').textContent.replace('Profit/Loss: $', ''));
+            const bets = this.getBetsFromTable(name); // Get bets to save with session
 
-            console.log(`Attempting to close punter: ${name}, Profit/Loss: ${profitLoss}`);
+            console.log(`Attempting to close punter: ${name}, Profit/Loss: ${profitLoss}, Bets:`, bets);
 
             const { data: punter, error: punterError } = await this.supabaseClient
                 .from('punters')
@@ -298,7 +299,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const insertPayload = {
                     punter_id: punter.id,
                     timestamp: new Date().toISOString(),
-                    profitloss: profitLoss
+                    profitloss: profitLoss,
+                    bets: bets // Save bets as JSON
                 };
                 console.log('Inserting into history:', insertPayload);
 
@@ -411,7 +413,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const { data: history, error: historyError } = await this.supabaseClient
                     .from('history')
-                    .select('punter_id, profitloss, timestamp')
+                    .select('punter_id, profitloss, timestamp, bets')
                     .order('timestamp', { ascending: false });
                 if (historyError) throw historyError;
 
@@ -438,7 +440,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         stats.totalProfitLoss += record.profitloss;
                         if (record.profitloss > 0) stats.wins++;
                         else if (record.profitloss < 0) stats.losses++;
-                        stats.sessions.push({ profitloss: record.profitloss, timestamp: record.timestamp });
+                        stats.sessions.push({ 
+                            profitloss: record.profitloss, 
+                            timestamp: record.timestamp, 
+                            bets: record.bets || [] // Include bets, default to empty array if null
+                        });
                     }
                 });
 
@@ -526,36 +532,49 @@ document.addEventListener('DOMContentLoaded', () => {
                     let detailsHtml = `
                         <h3>${name}'s Session History</h3>
                         <button id="close-details" style="float: right;">Close</button>
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="background: #f2f2f2;">
-                                    <th style="padding: 8px; border: 1px solid #ddd;">Date</th>
-                                    <th style="padding: 8px; border: 1px solid #ddd;">Profit/Loss</th>
-                                </tr>
-                            </thead>
-                            <tbody>
                     `;
                     if (stat.sessions.length === 0) {
-                        detailsHtml += `<tr><td colspan="2" style="padding: 8px; border: 1px solid #ddd;">No sessions yet</td></tr>`;
+                        detailsHtml += `<p>No sessions yet</p>`;
                     } else {
                         stat.sessions.forEach(session => {
                             const date = new Date(session.timestamp);
                             const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                             const formattedDate = `${dayNames[date.getDay()]}, ${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
                             detailsHtml += `
-                                <tr>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">${formattedDate}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd; color: ${session.profitloss >= 0 ? 'green' : 'red'}">
-                                        $${session.profitloss.toFixed(2)}
-                                    </td>
-                                </tr>
+                                <div style="margin-bottom: 20px;">
+                                    <h4>Session: ${formattedDate} - Profit/Loss: <span style="color: ${session.profitloss >= 0 ? 'green' : 'red'}">$${session.profitloss.toFixed(2)}</span></h4>
+                                    <table style="width: 100%; border-collapse: collapse;">
+                                        <thead>
+                                            <tr style="background: #f2f2f2;">
+                                                <th style="padding: 8px; border: 1px solid #ddd;">Stake</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd;">Game</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd;">Odds</th>
+                                                <th style="padding: 8px; border: 1px solid #ddd;">Outcome</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                            `;
+                            if (session.bets.length === 0) {
+                                detailsHtml += `<tr><td colspan="4" style="padding: 8px; border: 1px solid #ddd;">No bets recorded</td></tr>`;
+                            } else {
+                                session.bets.forEach(bet => {
+                                    detailsHtml += `
+                                        <tr>
+                                            <td style="padding: 8px; border: 1px solid #ddd;">$${bet.stake.toFixed(2)}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd;">${bet.game || 'N/A'}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd;">${bet.odds.toFixed(2)}</td>
+                                            <td style="padding: 8px; border: 1px solid #ddd;">${bet.outcome || '--'}</td>
+                                        </tr>
+                                    `;
+                                });
+                            }
+                            detailsHtml += `
+                                        </tbody>
+                                    </table>
+                                </div>
                             `;
                         });
                     }
-                    detailsHtml += `
-                            </tbody>
-                        </table>
-                    `;
                     detailsModal.innerHTML = detailsHtml;
                     document.body.appendChild(detailsModal);
                     document.getElementById('close-details').addEventListener('click', () => detailsModal.remove());
