@@ -408,28 +408,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async clearData() {
-            if (!confirm('Clear all data? This cannot be undone.')) return;
-            try {
-                const [punterRes, betsRes, historyRes] = await Promise.all([
-                    this.supabaseClient.from('punters').delete().select(),
-                    this.supabaseClient.from('bets').delete().select(),
-                    this.supabaseClient.from('history').delete().select()
-                ]);
+    if (!confirm('Clear all data? This cannot be undone.')) return;
+    try {
+        const [punterRes, betsRes, historyRes] = await Promise.all([
+            this.supabaseClient.from('punters').delete().select(),
+            this.supabaseClient.from('bets').delete().select(),
+            this.supabaseClient.from('history').delete().select()
+        ]);
 
-                console.log('Cleared punters:', punterRes.data);
-                console.log('Cleared bets:', betsRes.data);
-                console.log('Cleared history:', historyRes.data);
+        console.log('Cleared punters:', punterRes.data);
+        console.log('Cleared bets:', betsRes.data);
+        console.log('Cleared history:', historyRes.data);
 
-                if (punterRes.error) throw punterRes.error;
-                if (betsRes.error) throw betsRes.error;
-                if (historyRes.error) throw historyRes.error;
+        if (punterRes.error) throw punterRes.error;
+        if (betsRes.error) throw betsRes.error;
+        if (historyRes.error) throw historyRes.error;
 
-                location.reload();
-            } catch (error) {
-                console.error('Error clearing data:', error.message, error.code);
-                alert('Failed to clear data: ' + error.message);
-            }
-        }
+        location.reload();
+    } catch (error) {
+        console.error('Error clearing data:', error.message, error.code);
+        alert('Failed to clear data: ' + error.message);
+    }
+}
 
         toggleLayout() {
             const container = document.getElementById('punters-container');
