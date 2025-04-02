@@ -422,6 +422,36 @@ document.addEventListener('DOMContentLoaded', () => {
             this.updateOverallProfit();
         }
 
+        async deletePunter(punterId, punterName) {
+            if (!confirm(`Are you sure you want to delete "${punterName}" and all their data? This cannot be undone.`)) return;
+
+            try {
+                // Delete from all three tables: punters, bets, and history
+                const [punterRes, betsRes, historyRes] = await Promise.all([
+                    this.supabaseClient.from('punters').delete().eq('id', punterId),
+                    this.supabaseClient.from('bets').delete().eq('punter_id', punterId),
+                    this.supabaseClient.from('history').delete().eq('punter_id', punterId)
+                ]);
+
+                if (punterRes.error) throw punterRes.error;
+                if (betsRes.error) throw betsRes.error;
+                if (historyRes.error) throw historyRes.error;
+
+                // Remove from UI if currently displayed
+                const punterDiv = document.querySelector(`.punter-section[data-punter="${punterName}"]`);
+                if (punterDiv) punterDiv.remove();
+
+                delete this.consecutiveLosses[punterName];
+                delete this.sessionStartTimes[punterName];
+
+                await this.updateOverallProfit();
+                alert(`Punter "${punterName}" deleted successfully.`);
+            } catch (error) {
+                console.error('Error deleting punter:', error);
+                alert(`Failed to delete punter: ${error.message}`);
+            }
+        }
+
         async loadDashboardData() {
             try {
                 const { data: punters, error: punterError } = await this.supabaseClient
@@ -505,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <th style="padding: 8px; border: 1px solid #ddd;">Active P/L</th>
                             <th style="padding: 8px; border: 1px solid #ddd;">Session Wins</th>
                             <th style="padding: 8px; border: 1px solid #ddd;">Session Losses</th>
-                            <th style="padding: 8px; border: 1px solid #ddd;">Details</th>
+                            <th style="padding: 8px; border: 1px solid #ddd;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -525,6 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td style="padding: 8px; border: 1px solid #ddd;">${stat.losses}</td>
                         <td style="padding: 8px; border: 1px solid #ddd;">
                             <button class="show-details" data-name="${stat.name}">Details</button>
+                            <button class="delete-punter" data-id="${stat.id}" data-name="${stat.name}" style="margin-left: 5px; background: #ff4444; color: white;">Delete</button>
                         </td>
                     </tr>
                 `;
@@ -602,6 +633,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     detailsModal.innerHTML = detailsHtml;
                     document.body.appendChild(detailsModal);
                     document.getElementById('close-details').addEventListener('click', () => detailsModal.remove());
+                });
+            });
+
+            document.querySelectorAll('.delete-punter').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const punterId = btn.dataset.id;
+                    const punterName = btn.dataset.name;
+                    await this.deletePunter(punterId, punterName);
+                    container.remove(); // Close current dashboard
+                    this.showDashboard(); // Reopen updated dashboard
                 });
             });
         }
