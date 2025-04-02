@@ -72,7 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // Check the last session from history
                 const { data: lastSession, error: historyError } = await this.supabaseClient
                     .from('history')
                     .select('bets')
@@ -86,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const lastBets = lastSession.bets;
                     const hasThreeConsecutiveLosses = this.calculateConsecutiveLosses(lastBets) >= 3;
                     if (!hasThreeConsecutiveLosses) {
-                        betsToLoad = lastBets; // Resume last session's bets
+                        betsToLoad = lastBets;
                     }
                 }
 
@@ -100,7 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // Clear existing bets and load previous session bets if applicable
                 await this.supabaseClient.from('bets').delete().eq('punter_id', existingPunter.id);
                 if (betsToLoad.length > 0) {
                     const betData = betsToLoad.map(bet => ({ ...bet, punter_id: existingPunter.id }));
@@ -326,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     punter_id: punter.id,
                     timestamp: sessionStop,
                     profitloss: profitLoss,
-                    bets: JSON.parse(JSON.stringify(bets)), // Store bets for potential resumption
+                    bets: JSON.parse(JSON.stringify(bets)),
                     session_start: sessionStart,
                     session_stop: sessionStop
                 };
@@ -570,9 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <h4>Session Start: ${startFormatted} - Stop: ${stopFormatted}</h4>
                                     <p>Profit/Loss: <span style="color: ${session.profitloss >= 0 ? 'green' : 'red'}">€${session.profitloss.toFixed(2)}</span></p>
                                     <table style="width: 100%; border-collapse: collapse;">
-                                        <
-```javascript
-thead>
+                                        <thead>
                                             <tr style="background: #f2f2f2;">
                                                 <th style="padding: 8px; border: 1px solid #ddd;">Stake</th>
                                                 <th style="padding: 8px; border: 1px solid #ddd;">Game</th>
