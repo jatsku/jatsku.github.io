@@ -71,6 +71,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert(`Punter "${name}" is already active. Please close it before starting a new session.`);
                     return;
                 }
+
+                // Check the last session from history
+                const { data: lastSession, error: historyError } = await this.supabaseClient
+                    .from('history')
+                    .select('bets')
+                    .eq('punter_id', existingPunter.id)
+                    .order('timestamp', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                let betsToLoad = [];
+                if (!historyError && lastSession && lastSession.bets) {
+                    const lastBets = lastSession.bets;
+                    const hasThreeConsecutiveLosses = this.calculateConsecutiveLosses(lastBets) >= 3;
+                    if (!hasThreeConsecutiveLosses) {
+                        betsToLoad = lastBets; // Resume last session's bets
+                    }
+                }
+
                 const { error: updateError } = await this.supabaseClient
                     .from('punters')
                     .update({ closed: false })
@@ -80,10 +99,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('Failed to reopen punter: ' + updateError.message);
                     return;
                 }
+
+                // Clear existing bets and load previous session bets if applicable
                 await this.supabaseClient.from('bets').delete().eq('punter_id', existingPunter.id);
-                this.consecutiveLosses[name] = 0;
+                if (betsToLoad.length > 0) {
+                    const betData = betsToLoad.map(bet => ({ ...bet, punter_id: existingPunter.id }));
+                    await this.supabaseClient.from('bets').insert(betData);
+                }
+
+                this.consecutiveLosses[name] = this.calculateConsecutiveLosses(betsToLoad);
                 this.sessionStartTimes[name] = sessionStart;
-                this.renderPunter(name, []);
+                this.renderPunter(name, betsToLoad);
             } else {
                 const { error: insertError } = await this.supabaseClient.from('punters').insert({ name, closed: false });
                 if (insertError) {
@@ -247,9 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     this.supabaseClient.from('history').select('profitloss')
                 ]);
 
-                console.log('Bets data:', bets.data);
-                console.log('History data:', history.data);
-
                 let profit = 0;
 
                 if (bets.data && bets.data.length > 0) {
@@ -267,8 +290,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         return sum + (isNaN(pl) ? 0 : pl);
                     }, 0);
                 }
-
-                console.log('Calculated overall profit:', profit);
 
                 const overallProfitDiv = document.getElementById('overall-profit');
                 overallProfitDiv.textContent = `Overall Profit/Loss: €${profit.toFixed(2)}`;
@@ -288,8 +309,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const sessionStop = new Date().toISOString();
             const sessionStart = this.sessionStartTimes[name];
 
-            console.log(`Attempting to close punter: ${name}, Profit/Loss: ${profitLoss}, Bets:`, bets);
-
             const { data: punter, error: punterError } = await this.supabaseClient
                 .from('punters')
                 .select('id')
@@ -303,29 +322,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (punter) {
-                console.log('Punter ID:', punter.id);
                 const insertPayload = {
                     punter_id: punter.id,
                     timestamp: sessionStop,
                     profitloss: profitLoss,
-                    bets: JSON.parse(JSON.stringify(bets)),
+                    bets: JSON.parse(JSON.stringify(bets)), // Store bets for potential resumption
                     session_start: sessionStart,
                     session_stop: sessionStop
                 };
-                console.log('Inserting into history:', insertPayload);
 
-                const { data: historyData, error: insertError } = await this.supabaseClient
+                const { error: insertError } = await this.supabaseClient
                     .from('history')
-                    .insert([insertPayload])
-                    .select();
+                    .insert([insertPayload]);
 
                 if (insertError) {
                     console.error('Error inserting history:', insertError.message, insertError.details);
                     alert('Failed to save history: ' + insertError.message);
                     return;
                 }
-
-                console.log('Successfully inserted into history:', historyData);
 
                 const { error: updateError } = await this.supabaseClient
                     .from('punters')
@@ -359,10 +373,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     this.supabaseClient.from('history').delete().gt('punter_id', '00000000-0000-0000-0000-000000000000').select()
                 ]);
 
-                console.log('Cleared punters:', punterRes.data);
-                console.log('Cleared bets:', betsRes.data);
-                console.log('Cleared history:', historyRes.data);
-
                 if (punterRes.error) throw punterRes.error;
                 if (betsRes.error) throw betsRes.error;
                 if (historyRes.error) throw historyRes.error;
@@ -370,7 +380,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 location.reload();
             } catch (error) {
                 console.error('Error clearing data:', error.message, error.code);
-                console.error('Full error details:', JSON.stringify(error));
                 alert('Failed to clear data: ' + error.message);
             }
         }
@@ -561,7 +570,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <h4>Session Start: ${startFormatted} - Stop: ${stopFormatted}</h4>
                                     <p>Profit/Loss: <span style="color: ${session.profitloss >= 0 ? 'green' : 'red'}">€${session.profitloss.toFixed(2)}</span></p>
                                     <table style="width: 100%; border-collapse: collapse;">
-                                        <thead>
+                                        <
+```javascript
+thead>
                                             <tr style="background: #f2f2f2;">
                                                 <th style="padding: 8px; border: 1px solid #ddd;">Stake</th>
                                                 <th style="padding: 8px; border: 1px solid #ddd;">Game</th>
