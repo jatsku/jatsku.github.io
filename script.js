@@ -271,6 +271,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     this.supabaseClient.from('history').select('profitloss')
                 ]);
 
+                console.log('Active bets:', bets.data); // Debug log
+                console.log('History records:', history.data); // Debug log
+
                 let profit = 0;
 
                 if (bets.data && bets.data.length > 0) {
@@ -288,6 +291,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         return sum + (isNaN(pl) ? 0 : pl);
                     }, 0);
                 }
+
+                console.log('Calculated profit:', profit); // Debug log
 
                 const overallProfitDiv = document.getElementById('overall-profit');
                 overallProfitDiv.textContent = `Overall Profit/Loss: €${profit.toFixed(2)}`;
@@ -426,7 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm(`Are you sure you want to delete "${punterName}" and all their data? This cannot be undone.`)) return;
 
             try {
-                // Delete from all three tables: punters, bets, and history
                 const [punterRes, betsRes, historyRes] = await Promise.all([
                     this.supabaseClient.from('punters').delete().eq('id', punterId),
                     this.supabaseClient.from('bets').delete().eq('punter_id', punterId),
@@ -437,7 +441,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (betsRes.error) throw betsRes.error;
                 if (historyRes.error) throw historyRes.error;
 
-                // Remove from UI if currently displayed
                 const punterDiv = document.querySelector(`.punter-section[data-punter="${punterName}"]`);
                 if (punterDiv) punterDiv.remove();
 
@@ -461,8 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const { data: history, error: historyError } = await this.supabaseClient
                     .from('history')
-                    .select('punter_id, profitloss, timestamp, bets, session_start, session_stop')
-                    .order('timestamp', { ascending: false });
+                    .select('punter_id, profitloss, timestamp, bets, session_start, session_stop');
                 if (historyError) throw historyError;
 
                 const { data: bets, error: betsError } = await this.supabaseClient
@@ -473,6 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const punterStats = {};
                 punters.forEach(punter => {
                     punterStats[punter.id] = {
+                        id: punter.id, // Include the punter ID
                         name: punter.name,
                         totalProfitLoss: 0,
                         wins: 0,
@@ -641,8 +644,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const punterId = btn.dataset.id;
                     const punterName = btn.dataset.name;
                     await this.deletePunter(punterId, punterName);
-                    container.remove(); // Close current dashboard
-                    this.showDashboard(); // Reopen updated dashboard
+                    container.remove();
+                    this.showDashboard();
                 });
             });
         }
